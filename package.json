@@ -1,0 +1,41 @@
+{
+  "name": "storymode",
+  "version": "0.1.0",
+  "description": "A terminal, agentic writing harness for fiction — like a coding agent, but for stories.",
+  "type": "module",
+  "bin": {
+    "storymode": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.58",
+    "@ai-sdk/openai": "^4.0.71",
+    "ai": "^7.0.107",
+    "commander": "^15.0.0",
+    "diff": "^9.0.0",
+    "ink": "^7.1.1",
+    "react": "^19.3.0",
+    "yaml": "^2.6.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.1"
+  }
+}

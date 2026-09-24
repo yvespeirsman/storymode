@@ -299,7 +299,16 @@ export async function runTurn(deps: AgentLoopDeps, priorMessages: ModelMessage[]
     const approvalRequests: Array<{ approvalId: string; toolCall: { toolName: string; input: unknown } }> = [];
 
     for await (const part of result.stream) {
-      if (part.type === "text-delta") {
+      if (part.type === "text-start") {
+        // Each text block (e.g. before/after a tool call) streams independently and rarely
+        // starts with its own leading space, so without this two sentences from different
+        // blocks can run together with no space between them.
+        if (combinedText.length > 0 && !/\s$/.test(combinedText)) {
+          const separator = "\n\n";
+          combinedText += separator;
+          deps.onTextDelta?.(separator);
+        }
+      } else if (part.type === "text-delta") {
         combinedText += part.text;
         deps.onTextDelta?.(part.text);
       } else if (part.type === "tool-approval-request" && !part.isAutomatic) {

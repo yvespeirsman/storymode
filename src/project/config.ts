@@ -54,6 +54,11 @@ export function saveProjectConfig(projectDir: string, config: ProjectConfig): vo
   writeFileSync(projectConfigPath(projectDir), JSON.stringify(config, null, 2) + "\n", "utf8");
 }
 
+export function resolveApiKeyForProvider(provider: ProviderId): string | undefined {
+  const global = loadGlobalConfig();
+  return process.env[ENV_KEY_BY_PROVIDER[provider]] ?? global.apiKeys[provider];
+}
+
 export interface ResolvedConfig {
   provider: ProviderId;
   model: string;

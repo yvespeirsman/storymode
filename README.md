@@ -87,6 +87,15 @@ Press [y] to approve, [n] to reject.
 
 Press `y` to accept, `n` to reject the suggestion. 
 
+The model in use is shown at the top of the session. Run `/model list` to
+fetch the models available for your current provider from its API (or
+`/model list openai` / `/model list anthropic` for a specific one). Switch
+model at any time with `/model <provider> <model>`, e.g. `/model openai
+gpt-5` — this checks the model exists for that provider before switching,
+and saves the choice to `.storymode/config.json` so it's remembered for
+next time. Run `/model` with no arguments to see the current model. Typing
+`/` on its own shows a list of all slash commands.
+
 Type `/exit` or `/quit`, or press `Ctrl+C`, to leave a session at any time.
 Come back to it later with:
 

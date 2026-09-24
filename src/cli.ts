@@ -29,7 +29,7 @@ async function launchTui(opts: { resume: boolean }) {
   const session = (opts.resume && loadLatestSession(projectDir)) || createSession(projectDir);
   saveSession(projectDir, session);
 
-  await startTui({ model, projectDir, project: config.project }, session, projectDir);
+  await startTui({ model, projectDir, project: config.project }, session, projectDir, `${config.provider}/${config.model}`);
 }
 
 async function main() {

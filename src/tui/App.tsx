@@ -36,6 +36,20 @@ const MODEL_USAGE_TEXT =
 
 const SLASH_COMMANDS_HELP_TEXT = SLASH_COMMANDS.map((c) => `${c.usage} — ${c.description}`).join("\n");
 
+const ASCII_LOGO_STORY = [
+  "████  █                 ",
+  "█▄▄▄ ▀█▀▀ █▀▀█ █▀▀  █  █",
+  "   █  █   █  █ █    ▀▄▄▀",
+  "████  ▀▀  ▀▀▀▀ ▀     ██ ",
+].join("\n");
+
+const ASCII_LOGO_MODE = [
+  "█▄ ▄█         ▄     ",
+  "█ █ █ █▀▀█ █▀▀█ █▀▀█",
+  "█   █ █  █ █  █ █▀▀▀",
+  "█   █ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀",
+].join("\n");
+
 export interface AppProps {
   deps: Omit<AgentLoopDeps, "onApprovalRequest">;
   session: SessionData;
@@ -292,7 +306,13 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
 
   return (
     <Box flexDirection="column">
-      <Box marginBottom={1}>
+      <Box flexDirection="column" marginBottom={1}>
+        <Box>
+          <Box marginRight={1}>
+            <Text dimColor>{ASCII_LOGO_STORY}</Text>
+          </Box>
+          <Text bold>{ASCII_LOGO_MODE}</Text>
+        </Box>
         <Text dimColor>model: {modelLabel}</Text>
       </Box>
 

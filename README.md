@@ -1,13 +1,17 @@
-# StoryMode
+# StoryMode: your Claude Code for Fiction
 
-A terminal, agentic writing harness for fiction — the same idea as a coding
-agent CLI (OpenCode, pi.dev), but pointed at a novel instead of a codebase.
-You run it inside a project folder full of plain markdown files, and it reads
+StoryMode is an agentic writing harness for fiction. It takes its inspiration from
+coding agents like Claude Code, OpenCode and pi.dev, and applies it to novels instead
+of codebases. Run it inside a project folder with markdown files, and it reads
 and edits those files through an AI agent that keeps your outline, character
 bible, and manuscript in sync as you go.
 
-Every file the agent wants to write — a chapter, a character bio, the outline
-— is shown to you as a diff first. Nothing lands until you approve it.
+StoryMode structures the writing process as a collaboration between man and machine. 
+When you start StoryMode, the program
+will scan your project directory, determine the status of your novel, and suggest
+what to do next.
+The AI agent helps you create an outline, characters, chapters, etc., but does not make
+any changes to your work without your approval. 
 
 ## Requirements
 
@@ -28,16 +32,17 @@ npm link          # makes the `storymode` command available globally
 storymode config set-key anthropic sk-ant-...
 ```
 
-This is stored once, globally, at `~/.config/storymode/config.json` — every
-project on your machine uses it. You can use OpenAI instead:
+The API key stored once, globally, at `~/.config/storymode/config.json`, so that every project on your machine can use it. 
+
+To use OpenAI instead of Anthropic, run:
 
 ```
 storymode config set-key openai sk-...
 storymode config set-default openai gpt-5
 ```
 
-An environment variable (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) always wins
-over the stored config, if you'd rather not save a key to disk.
+You can also use environment variables (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`)
+if you'd rather not save a key to disk.
 
 ## Quick start
 
@@ -47,15 +52,14 @@ storymode init --title "The Salt Road"
 storymode
 ```
 
-`init` scaffolds an empty project (see [Project layout](#project-layout)
-below). Running `storymode` with no arguments launches an interactive
-session. Because this is a brand-new project, StoryMode won't just show you a
-blank prompt — it checks what's already there (outline, characters, chapters)
-and opens with a short orientation message suggesting what to do first:
+`init` sets up an empty project (see [Project layout](#project-layout)
+below). Running `storymode` with no argument then launches an interactive
+session. StoryMode checks what's already in your project directory (outline,
+characters, chapters) and opens with a short orientation message suggesting what to do next:
 sketch the premise, build out your cast, or start drafting, if you already
 have enough to go on.
 
-From there it's a conversation. Talk to it like a collaborator:
+From there you can chat with the AI agent to draft your story:
 
 ```
 > Let's outline a three-act structure. It's a heist story set on a
@@ -69,9 +73,9 @@ From there it's a conversation. Talk to it like a collaborator:
 
 ## The approval flow
 
-Any time the agent wants to change a file on disk — write or append to a
-chapter, update the outline or a beat sheet, add or edit a character/location
-— it stops and shows you a unified diff:
+Any time the agent wants to change a file on disk (write or append to a
+chapter, update the outline or a beat sheet, add or edit a character/location) 
+it stops and shows you what it would like to change:
 
 ```
 Approval needed: Write chapter "ch01"
@@ -81,10 +85,7 @@ Approval needed: Write chapter "ch01"
 Press [y] to approve, [n] to reject.
 ```
 
-Press `y` to let it through, `n` to reject it (the agent is told you rejected
-it and can try a different approach). Read-only actions — reading a chapter,
-listing characters, checking continuity — happen without asking, since
-they can't change anything.
+Press `y` to accept, `n` to reject the suggestion. 
 
 Type `/exit` or `/quit`, or press `Ctrl+C`, to leave a session at any time.
 Come back to it later with:
@@ -93,7 +94,7 @@ Come back to it later with:
 storymode continue
 ```
 
-which resumes the most recent session in the current project instead of
+This resumes the most recent session in the current project instead of
 starting a new one.
 
 ## Project layout
@@ -159,7 +160,7 @@ contradictions, e.g. a character's eye color changing between chapters.
 ## Notes
 
 - StoryMode never sends anything anywhere except your chosen model provider's
-  API — there's no other backend involved.
+  API. No other backend is involved.
 - Bring your own model: StoryMode works with any Anthropic or OpenAI model
   you have access to; set it with `storymode config set-default <provider> <model>`
   or per-project in `.storymode/config.json`.

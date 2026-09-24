@@ -37,10 +37,10 @@ const MODEL_USAGE_TEXT =
 const SLASH_COMMANDS_HELP_TEXT = SLASH_COMMANDS.map((c) => `${c.usage} — ${c.description}`).join("\n");
 
 const ASCII_LOGO_STORY = [
-  "████  █                 ",
-  "█▄▄▄ ▀█▀▀ █▀▀█ █▀▀  █  █",
-  "   █  █   █  █ █    ▀▄▄▀",
-  "████  ▀▀  ▀▀▀▀ ▀     ██ ",
+  "████  █                ",
+  "█▄▄▄ ▀█▀▀ █▀▀█ █▀▀ █  █",
+  "   █  █   █  █ █   ▀▄▄▀",
+  "████  ▀▀  ▀▀▀▀ ▀    ██ ",
 ].join("\n");
 
 const ASCII_LOGO_MODE = [

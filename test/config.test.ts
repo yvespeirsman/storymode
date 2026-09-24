@@ -27,13 +27,11 @@ describe("project config", () => {
     withTempProject((dir) => {
       saveProjectConfig(dir, {
         title: "The Salt Road",
-        styleGuide: "Terse, present tense.",
         autoAcceptEdits: false,
         autoExtractContinuity: true,
       });
       const loaded = loadProjectConfig(dir);
       expect(loaded.title).toBe("The Salt Road");
-      expect(loaded.styleGuide).toBe("Terse, present tense.");
     });
   });
 

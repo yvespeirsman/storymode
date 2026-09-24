@@ -36,11 +36,3 @@ export function wordCount(text: string): number {
   const words = text.trim().split(/\s+/).filter(Boolean);
   return words.length;
 }
-
-export function manuscriptWordCount(projectDir: string): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const id of listChapters(projectDir)) {
-    counts[id] = wordCount(readChapter(projectDir, id));
-  }
-  return counts;
-}

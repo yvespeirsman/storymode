@@ -12,7 +12,6 @@ export type GlobalConfig = z.infer<typeof globalConfigSchema>;
 
 export const projectConfigSchema = z.object({
   title: z.string().default("Untitled Story"),
-  styleGuide: z.string().default(""),
   provider: providerIdSchema.optional(),
   model: z.string().optional(),
   autoAcceptEdits: z.boolean().default(false),

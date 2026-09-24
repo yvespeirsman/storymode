@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildAppendScene, listChapters, readChapter, wordCount, writeChapter } from "../src/tools/manuscriptTools.js";
 import { listBeatChapters, readBeats, readOutline, updateBeats, updateOutline } from "../src/tools/outlineTools.js";
+import { readStyleGuide, updateStyleGuide } from "../src/tools/styleTools.js";
 import { withTempProject } from "./helpers.js";
 
 describe("outlineTools", () => {
@@ -13,6 +14,17 @@ describe("outlineTools", () => {
       updateBeats(dir, "ch01", "- Mira arrives at the harbor");
       expect(readBeats(dir, "ch02")).toBe("");
       expect(listBeatChapters(dir)).toEqual(["ch01"]);
+    });
+  });
+});
+
+describe("styleTools", () => {
+  it("round-trips the project-specific style guide", () => {
+    withTempProject((dir) => {
+      expect(readStyleGuide(dir)).toBe("");
+      updateStyleGuide(dir, "## Description\nTerse, present tense.\n\n## Example passages\nThe tide came in fast.");
+      expect(readStyleGuide(dir)).toContain("Terse, present tense.");
+      expect(readStyleGuide(dir)).toContain("The tide came in fast.");
     });
   });
 });

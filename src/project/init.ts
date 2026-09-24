@@ -24,6 +24,21 @@ World rules, glossary, and timeline go here. The agent reads this before
 drafting scenes and should keep it updated as canon is established.
 `;
 
+const STYLE_TEMPLATE = `# Style guide
+
+The agent reads this before every turn and tries to match it. You can
+describe the style in prose, paste example passages to imitate, or both.
+
+## Description
+
+_Point of view, tense, sentence rhythm, tone, what to avoid..._
+
+## Example passages
+
+_Paste a passage or two — yours or a reference author's — that capture the_
+_voice you're going for._
+`;
+
 const GITIGNORE = `node_modules/
 .storymode/session/
 `;
@@ -52,6 +67,7 @@ export function initProject(projectDir: string, title: string): InitResult {
   const files: Array<[string, string]> = [
     [join(projectDir, ".storymode", "outline", "outline.md"), OUTLINE_TEMPLATE],
     [join(projectDir, ".storymode", "bible", "lore.md"), LORE_TEMPLATE],
+    [join(projectDir, ".storymode", "style.md"), STYLE_TEMPLATE],
     [join(projectDir, ".storymode", "continuity", "facts.jsonl"), ""],
     [join(projectDir, ".gitignore"), GITIGNORE],
   ];

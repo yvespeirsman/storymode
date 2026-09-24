@@ -1,5 +1,6 @@
 import { findMentionedCharacters } from "../tools/bibleTools.js";
 import { readOutline } from "../tools/outlineTools.js";
+import { readStyleGuide } from "../tools/styleTools.js";
 import type { ProjectConfig } from "../project/schema.js";
 
 const CRAFT_GUIDANCE = `You are a fiction-writing collaborator embedded in a terminal harness called
@@ -32,8 +33,9 @@ export function buildSystemPrompt(ctx: SystemPromptContext): string {
 
   sections.push(`## Project: ${ctx.project.title}`);
 
-  if (ctx.project.styleGuide.trim()) {
-    sections.push(`## Style guide\n${ctx.project.styleGuide.trim()}`);
+  const styleGuide = readStyleGuide(ctx.projectDir).trim();
+  if (styleGuide) {
+    sections.push(`## Style guide\n${styleGuide}`);
   }
 
   const outline = readOutline(ctx.projectDir).trim();

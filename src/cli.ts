@@ -6,6 +6,7 @@ import { registerConfigCommand } from "./commands/config.js";
 import { registerContinuityCommand } from "./commands/continuity.js";
 import { registerExportCommand } from "./commands/export.js";
 import { registerOutlineCommand } from "./commands/outline.js";
+import { registerStyleCommand } from "./commands/style.js";
 import { resolveConfig } from "./project/config.js";
 import { initProject } from "./project/init.js";
 import { startTui } from "./tui/index.js";
@@ -56,6 +57,7 @@ async function main() {
 
   registerCharacterCommand(program, getProjectDir);
   registerOutlineCommand(program, getProjectDir);
+  registerStyleCommand(program, getProjectDir);
   registerContinuityCommand(program, getProjectDir);
   registerExportCommand(program, getProjectDir);
   registerConfigCommand(program);

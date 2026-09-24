@@ -113,7 +113,8 @@ starting a new one.
 ```
 my-novel/
   .storymode/
-    config.json              # this project's title, style guide, model settings
+    config.json              # this project's title and model settings
+    style.md                  # style guide: description and/or example passages
     bible/
       characters/            # one markdown file per character
       locations/              # one markdown file per location
@@ -148,6 +149,8 @@ everything is also available directly from the shell:
 | `storymode outline show` | Print the outline and list chapters with beat sheets |
 | `storymode outline edit` | Open the outline in `$EDITOR` |
 | `storymode outline beats <chapterId> [-e]` | Show or edit a chapter's scene beats |
+| `storymode style show` | Print the style guide |
+| `storymode style edit` | Open the style guide in `$EDITOR` |
 | `storymode continuity check <chapterId>` | Check a chapter against previously recorded facts |
 | `storymode continuity facts` | List all recorded continuity facts |
 | `storymode export [-o path]` | Compile the manuscript into a single markdown file |
@@ -156,6 +159,13 @@ everything is also available directly from the shell:
 | `storymode config set-default <provider> <model>` | Set the default provider/model |
 
 Run any command with `--help` for its full options.
+
+## Style guide
+
+`.storymode/style.md` is a project-specific markdown file where you can
+describe the voice you want (point of view, tense, sentence rhythm, tone) and/or
+paste in example passages to imitate. The agent reads it in full before every
+turn and tries to match it. Edit it by hand or with `storymode style edit`.
 
 ## Continuity checking
 

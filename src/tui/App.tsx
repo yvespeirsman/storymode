@@ -8,6 +8,7 @@ import { listModels, modelExists, resolveLanguageModel } from "../agent/provider
 import { resolveApiKeyForProvider, resolveConfig, saveProjectConfig } from "../project/config.js";
 import { providerIdSchema, type ProjectConfig } from "../project/schema.js";
 import { DiffView } from "./DiffView.js";
+import { Spinner } from "./Spinner.js";
 
 interface DisplayMessage {
   role: "user" | "assistant" | "status" | "error" | "skill";
@@ -359,7 +360,13 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
             </Text>
             <Text>
               {streamingText}
-              {streamingText.length === 0 ? "[thinking…]" : <Text dimColor>▌</Text>}
+              {streamingText.length === 0 ? (
+                <Text dimColor>
+                  <Spinner color="green" /> Thinking…
+                </Text>
+              ) : (
+                <Text dimColor>▌</Text>
+              )}
             </Text>
           </Box>
         )}
@@ -377,8 +384,8 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
 
       {!pendingApproval && (
         <Box>
-          <Text color={busy ? "gray" : "blue"}>{busy ? "…" : ">"} </Text>
-          <Text>{input}</Text>
+          <Text color={busy ? "gray" : "blue"}>{">"}</Text>
+          <Text> {input}</Text>
           {!busy && <Text dimColor>█</Text>}
         </Box>
       )}

@@ -1,7 +1,7 @@
 import { type LanguageModel, type ModelMessage } from "ai";
 import { Box, Text, useApp, useInput } from "ink";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type AgentLoopDeps, type ApprovalDecision, type PendingApproval, runTurn } from "../agent/loop.js";
+import { type AgentLoopDeps, type ApprovalDecision, type PendingApproval, type SkillUsed, runTurn } from "../agent/loop.js";
 import { ORIENTATION_PROMPT } from "../agent/onboarding.js";
 import { saveSession, type SessionData } from "../agent/session.js";
 import { listModels, modelExists, resolveLanguageModel } from "../agent/providers.js";
@@ -10,7 +10,7 @@ import { providerIdSchema, type ProjectConfig } from "../project/schema.js";
 import { DiffView } from "./DiffView.js";
 
 interface DisplayMessage {
-  role: "user" | "assistant" | "status" | "error";
+  role: "user" | "assistant" | "status" | "error" | "skill";
   text: string;
 }
 
@@ -104,6 +104,8 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
             project: currentProject,
             onApprovalRequest: handleApprovalRequest,
             onTextDelta: (delta) => setStreamingText((prev) => (prev ?? "") + delta),
+            onSkillUsed: (skill: SkillUsed) =>
+              setLog((prev) => [...prev, { role: "skill", text: `Using skill: ${skill.name}` }]),
           },
           sessionRef.current.messages,
           text,
@@ -317,31 +319,39 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
-        {log.map((entry, i) => (
-          <Box key={i} marginBottom={1} flexDirection="column">
-            <Text
-              bold
-              color={
-                entry.role === "user"
-                  ? "cyan"
+        {log.map((entry, i) =>
+          entry.role === "skill" ? (
+            <Box key={i} marginBottom={1}>
+              <Text dimColor color="magenta">
+                ✧ {entry.text}
+              </Text>
+            </Box>
+          ) : (
+            <Box key={i} marginBottom={1} flexDirection="column">
+              <Text
+                bold
+                color={
+                  entry.role === "user"
+                    ? "blue"
+                    : entry.role === "error"
+                      ? "red"
+                      : entry.role === "status"
+                        ? "yellow"
+                        : "green"
+                }
+              >
+                {entry.role === "user"
+                  ? "you"
                   : entry.role === "error"
-                    ? "red"
+                    ? "error"
                     : entry.role === "status"
-                      ? "yellow"
-                      : "green"
-              }
-            >
-              {entry.role === "user"
-                ? "you"
-                : entry.role === "error"
-                  ? "error"
-                  : entry.role === "status"
-                    ? "system"
-                    : "storymode"}
-            </Text>
-            <Text>{entry.text}</Text>
-          </Box>
-        ))}
+                      ? "system"
+                      : "storymode"}
+              </Text>
+              <Text>{entry.text}</Text>
+            </Box>
+          ),
+        )}
         {streamingText !== null && (
           <Box marginBottom={1} flexDirection="column">
             <Text bold color="green">
@@ -367,7 +377,7 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
 
       {!pendingApproval && (
         <Box>
-          <Text color={busy ? "gray" : "cyan"}>{busy ? "…" : ">"} </Text>
+          <Text color={busy ? "gray" : "blue"}>{busy ? "…" : ">"} </Text>
           <Text>{input}</Text>
           {!busy && <Text dimColor>█</Text>}
         </Box>

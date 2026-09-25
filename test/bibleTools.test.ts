@@ -4,9 +4,11 @@ import {
   buildCharacterUpsert,
   listCharacters,
   readCharacter,
+  readLore,
   slugify,
   upsertCharacter,
 } from "../src/tools/bibleTools.js";
+import { writeProjectFile } from "../src/tools/fileTools.js";
 import { withTempProject } from "./helpers.js";
 
 describe("bibleTools", () => {
@@ -75,6 +77,14 @@ describe("bibleTools", () => {
       expect(() => upsertCharacter(dir, { slug: "no-such-character", name: "Someone" })).toThrow(
         BibleEntryNotFoundError,
       );
+    });
+  });
+
+  it("reads lore, defaulting to empty when the file doesn't exist yet", () => {
+    withTempProject((dir) => {
+      expect(readLore(dir)).toBe("");
+      writeProjectFile(dir, ".storymode/bible/lore.md", "# Lore\n\nThe tide god sleeps beneath the harbor.");
+      expect(readLore(dir)).toContain("tide god");
     });
   });
 });

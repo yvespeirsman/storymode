@@ -7,6 +7,8 @@ import * as continuityTools from "../tools/continuityTools.js";
 import * as fileTools from "../tools/fileTools.js";
 import * as manuscriptTools from "../tools/manuscriptTools.js";
 import * as outlineTools from "../tools/outlineTools.js";
+import * as skillTools from "../tools/skillTools.js";
+import * as styleTools from "../tools/styleTools.js";
 import { buildSystemPrompt } from "./systemPrompt.js";
 
 const WRITE_TOOL_NAMES = [
@@ -30,6 +32,11 @@ export interface ApprovalDecision {
   reason?: string;
 }
 
+export interface SkillUsed {
+  id: string;
+  name: string;
+}
+
 export interface AgentLoopDeps {
   model: LanguageModel;
   projectDir: string;
@@ -37,6 +44,8 @@ export interface AgentLoopDeps {
   onApprovalRequest: (approval: PendingApproval) => Promise<ApprovalDecision>;
   /** Called with each chunk of assistant text as it streams in, in order. */
   onTextDelta?: (delta: string) => void;
+  /** Called synchronously when a skill-backed tool (e.g. draftOutline) is invoked. */
+  onSkillUsed?: (skill: SkillUsed) => void;
 }
 
 function patch(path: string, oldText: string, newText: string): string {
@@ -44,8 +53,30 @@ function patch(path: string, oldText: string, newText: string): string {
   return createTwoFilesPatch(path, path, oldText, newText, "", "", { context: 3 });
 }
 
-function buildTools(deps: AgentLoopDeps) {
+const DRAFT_OUTLINE_SKILL_ID = "draft-outline";
+const DRAFT_OUTLINE_FALLBACK_DESCRIPTION =
+  "Call this before drafting or revising the top-level outline. Returns drafting instructions " +
+  "plus the story's lore, cast, and current outline in one call.";
+
+/**
+ * A model can ignore a prompt nudge and jump straight to updateOutline without gathering real
+ * context first, producing near-empty or placeholder content. This is shared between buildTools
+ * (which flips it once draftOutline runs) and runTurn's approval loop (which checks it before ever
+ * showing the human an approval prompt for updateOutline — the diff is built from the model's raw
+ * tool-call input, so blocking only inside execute() would still show a bogus approval prompt).
+ */
+export interface OutlineGuardState {
+  draftOutlineCalled: boolean;
+}
+
+/** Whether an approval request for this tool call should be auto-rejected without ever reaching the human. */
+export function shouldAutoRejectApproval(toolName: string, outlineGuard: OutlineGuardState): boolean {
+  return toolName === "updateOutline" && !outlineGuard.draftOutlineCalled;
+}
+
+export function buildTools(deps: AgentLoopDeps, outlineGuard: OutlineGuardState) {
   const { projectDir, model } = deps;
+  const draftOutlineSkill = skillTools.readSkill(projectDir, DRAFT_OUTLINE_SKILL_ID);
 
   return {
     readFile: tool({
@@ -69,10 +100,29 @@ function buildTools(deps: AgentLoopDeps) {
       inputSchema: z.object({}),
       execute: async () => outlineTools.readOutline(projectDir) || "(outline is empty)",
     }),
+    draftOutline: tool({
+      description: draftOutlineSkill?.description ?? DRAFT_OUTLINE_FALLBACK_DESCRIPTION,
+      inputSchema: z.object({}),
+      execute: async () => {
+        outlineGuard.draftOutlineCalled = true;
+        deps.onSkillUsed?.({ id: DRAFT_OUTLINE_SKILL_ID, name: draftOutlineSkill?.name ?? DRAFT_OUTLINE_SKILL_ID });
+        return {
+          instructions:
+            draftOutlineSkill?.instructions ??
+            `(no draft-outline skill found — create ${skillTools.skillPath(DRAFT_OUTLINE_SKILL_ID)})`,
+          lore: bibleTools.readLore(projectDir) || "(no lore recorded yet)",
+          characters: bibleTools.listCharacters(projectDir).map((c) => ({ slug: c.slug, ...c.frontmatter })),
+          currentOutline: outlineTools.readOutline(projectDir) || "(outline is empty)",
+        };
+      },
+    }),
     updateOutline: tool({
-      description: "Replace the top-level outline with new contents. Requires user approval.",
+      description: "Replace the top-level outline with new contents. Requires user approval. Call draftOutline first.",
       inputSchema: z.object({ contents: z.string() }),
       execute: async ({ contents }) => {
+        if (!outlineGuard.draftOutlineCalled) {
+          throw new Error("Call draftOutline first to gather lore, cast, and the current outline, then retry.");
+        }
         outlineTools.updateOutline(projectDir, contents);
         return "Outline updated.";
       },
@@ -91,6 +141,15 @@ function buildTools(deps: AgentLoopDeps) {
       },
     }),
 
+    readStyleGuide: tool({
+      description:
+        "Call this before drafting or revising prose (a chapter or scene) so the voice stays " +
+        "consistent — point of view, tense, rhythm, tone, and any example passages. Not needed for " +
+        "structural work like the outline or beat sheets.",
+      inputSchema: z.object({}),
+      execute: async () => styleTools.readStyleGuide(projectDir) || "(no style guide recorded yet)",
+    }),
+
     listChapters: tool({
       description: "List chapter ids currently in the manuscript.",
       inputSchema: z.object({}),
@@ -103,7 +162,9 @@ function buildTools(deps: AgentLoopDeps) {
         manuscriptTools.readChapter(projectDir, chapterId) || "(chapter is empty or does not exist yet)",
     }),
     writeChapter: tool({
-      description: "Overwrite a chapter file with new full contents. Requires user approval.",
+      description:
+        "Overwrite a chapter file with new full contents. Call readStyleGuide first if you haven't " +
+        "already this session. Requires user approval.",
       inputSchema: z.object({ chapterId: z.string(), contents: z.string() }),
       execute: async ({ chapterId, contents }) => {
         manuscriptTools.writeChapter(projectDir, chapterId, contents);
@@ -111,7 +172,9 @@ function buildTools(deps: AgentLoopDeps) {
       },
     }),
     appendScene: tool({
-      description: "Append a new scene to the end of a chapter. Requires user approval.",
+      description:
+        "Append a new scene to the end of a chapter. Call readStyleGuide first if you haven't " +
+        "already this session. Requires user approval.",
       inputSchema: z.object({ chapterId: z.string(), sceneText: z.string() }),
       execute: async ({ chapterId, sceneText }) => {
         const { newContents } = manuscriptTools.buildAppendScene(projectDir, chapterId, sceneText);
@@ -274,7 +337,8 @@ export interface RunTurnResult {
 const MAX_APPROVAL_ROUNDS = 20;
 
 export async function runTurn(deps: AgentLoopDeps, priorMessages: ModelMessage[], userText: string): Promise<RunTurnResult> {
-  const tools = buildTools(deps);
+  const outlineGuard: OutlineGuardState = { draftOutlineCalled: false };
+  const tools = buildTools(deps, outlineGuard);
   const toolApproval = buildToolApproval();
   const systemPrompt = buildSystemPrompt({
     project: deps.project,
@@ -325,6 +389,20 @@ export async function runTurn(deps: AgentLoopDeps, priorMessages: ModelMessage[]
     const responses = [];
     for (const req of approvalRequests) {
       const { toolName, input } = req.toolCall;
+
+      // Refuse before the human ever sees it, not just before writing: the diff below is built
+      // straight from the model's raw tool-call input, so a premature call still produces a
+      // (bogus) approval prompt unless we intercept it here.
+      if (shouldAutoRejectApproval(toolName, outlineGuard)) {
+        responses.push({
+          type: "tool-approval-response" as const,
+          approvalId: req.approvalId,
+          approved: false,
+          reason: "Call draftOutline first to gather lore, cast, and the current outline, then retry updateOutline.",
+        });
+        continue;
+      }
+
       const diff = describeDiff(deps.projectDir, toolName, (input ?? {}) as Record<string, unknown>);
       const decision = await deps.onApprovalRequest({
         approvalId: req.approvalId,

@@ -17,6 +17,12 @@ export function slugify(name: string): string {
 
 const CHARACTERS_DIR = ".storymode/bible/characters";
 const LOCATIONS_DIR = ".storymode/bible/locations";
+const LORE_PATH = ".storymode/bible/lore.md";
+
+export function readLore(projectDir: string): string {
+  if (!projectFileExists(projectDir, LORE_PATH)) return "";
+  return readProjectFile(projectDir, LORE_PATH);
+}
 
 export interface BibleEntry<T> {
   slug: string;

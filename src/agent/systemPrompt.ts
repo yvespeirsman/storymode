@@ -1,6 +1,5 @@
 import { findMentionedCharacters } from "../tools/bibleTools.js";
 import { readOutline } from "../tools/outlineTools.js";
-import { readStyleGuide } from "../tools/styleTools.js";
 import type { ProjectConfig } from "../project/schema.js";
 
 const CRAFT_GUIDANCE = `You are a fiction-writing collaborator embedded in a terminal harness called
@@ -19,7 +18,12 @@ Craft principles to hold to:
 - A character or location's bible file is identified by its \`slug\`, not by its current name. When
   editing or renaming one that already exists, always pass its existing \`slug\` (shown below, or from
   listCharacters/listLocations) to upsertCharacter/upsertLocation. Omitting it on an existing entry
-  creates a second, duplicate file instead of updating the original.`;
+  creates a second, duplicate file instead of updating the original.
+- Different tasks need different context, and it isn't all preloaded below — pull in what a task
+  actually needs by calling the relevant tool first. Structural work (plot, outline, beats) needs the
+  lore and cast, not the style guide; prose work (chapters, scenes) needs the style guide, not every
+  character's full bible entry. Use draftOutline before outline/beat work and readStyleGuide before
+  drafting or revising prose.`;
 
 export interface SystemPromptContext {
   project: ProjectConfig;
@@ -32,11 +36,6 @@ export function buildSystemPrompt(ctx: SystemPromptContext): string {
   const sections = [CRAFT_GUIDANCE];
 
   sections.push(`## Project: ${ctx.project.title}`);
-
-  const styleGuide = readStyleGuide(ctx.projectDir).trim();
-  if (styleGuide) {
-    sections.push(`## Style guide\n${styleGuide}`);
-  }
 
   const outline = readOutline(ctx.projectDir).trim();
   if (outline) {

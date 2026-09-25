@@ -122,6 +122,9 @@ my-novel/
     outline/
       outline.md               # top-level plot / act structure
       beats/                    # per-chapter scene beat sheets
+    skills/
+      draft-outline/
+        SKILL.md                # instructions the agent follows when drafting the outline
     continuity/
       facts.jsonl               # canonical facts extracted from drafted chapters
     session/                    # saved conversation history, for `storymode continue`
@@ -164,8 +167,39 @@ Run any command with `--help` for its full options.
 
 `.storymode/style.md` is a project-specific markdown file where you can
 describe the voice you want (point of view, tense, sentence rhythm, tone) and/or
-paste in example passages to imitate. The agent reads it in full before every
-turn and tries to match it. Edit it by hand or with `storymode style edit`.
+paste in example passages to imitate. The agent reads it whenever a task
+actually needs it — drafting or revising a chapter or scene — rather than on
+every turn, so it doesn't leak into unrelated work like outlining. Edit it by
+hand or with `storymode style edit`.
+
+## Skills
+
+Each stage of the writing process (currently: drafting the outline) has a
+matching skill file under `.storymode/skills/<name>/SKILL.md` — plain
+markdown with a small YAML header:
+
+```
+---
+name: draft-outline
+description: Draft or revise the top-level chapter-by-chapter outline. Call
+  before writing or updating the outline; not needed for prose or style work.
+---
+
+Work at the chapter level, not just the act level. ...
+```
+
+`description` is what tells the agent when to reach for the skill;
+everything below the `---` is the detailed instructions it follows once it
+does. Both are hand-editable — tune the instructions, tighten or loosen the
+description, or extend them with your own conventions. Nothing else in the
+codebase needs to change for your edits to take effect.
+
+`storymode init` populates a project's `.storymode/skills/` by copying every
+`skills/<name>/SKILL.md` that ships with the package (`skills/` at the repo
+root, alongside `src/`) — so if you're developing StoryMode itself, edit the
+files there to change what new projects start with. It never overwrites a
+skill file that already exists in a project, so a project's own copy is
+independent from then on.
 
 ## Continuity checking
 

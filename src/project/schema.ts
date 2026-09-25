@@ -32,6 +32,12 @@ export const locationFrontmatterSchema = z.object({
 });
 export type LocationFrontmatter = z.infer<typeof locationFrontmatterSchema>;
 
+export const skillFrontmatterSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+});
+export type SkillFrontmatter = z.infer<typeof skillFrontmatterSchema>;
+
 export const continuityFactSchema = z.object({
   id: z.string(),
   chapter: z.string(),

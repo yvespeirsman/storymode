@@ -1,5 +1,5 @@
 import { parseFrontmatter } from "../project/frontmatter.js";
-import { skillFrontmatterSchema } from "../project/schema.js";
+import { skillFrontmatterSchema, type SkillFrontmatter } from "../project/schema.js";
 import { projectFileExists, readProjectFile } from "./fileTools.js";
 
 const SKILLS_DIR = ".storymode/skills";
@@ -23,7 +23,7 @@ export function readSkill(projectDir: string, id: string): Skill | null {
   const path = skillPath(id);
   if (!projectFileExists(projectDir, path)) return null;
   const source = readProjectFile(projectDir, path);
-  const { data, body } = parseFrontmatter<{ name: string; description: string }>(source);
+  const { data, body } = parseFrontmatter<SkillFrontmatter>(source);
   const frontmatter = skillFrontmatterSchema.parse(data);
   return { name: frontmatter.name, description: frontmatter.description, instructions: body.trim() };
 }

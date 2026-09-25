@@ -27,7 +27,7 @@ async function launchTui(opts: { resume: boolean }) {
   }
 
   const model = resolveLanguageModel(config);
-  const session = (opts.resume && loadLatestSession(projectDir)) || createSession(projectDir);
+  const session = (opts.resume && loadLatestSession(projectDir)) || createSession();
   saveSession(projectDir, session);
 
   await startTui({ model, projectDir, project: config.project }, session, projectDir, `${config.provider}/${config.model}`);

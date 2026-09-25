@@ -1,5 +1,4 @@
 import { Box, Text } from "ink";
-import React from "react";
 
 export function DiffView({ diffText }: { diffText: string }) {
   const lines = diffText.split("\n");

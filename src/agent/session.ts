@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ModelMessage } from "ai";
 
@@ -22,7 +22,7 @@ export interface SessionData {
   messages: ModelMessage[];
 }
 
-export function createSession(projectDir: string): SessionData {
+export function createSession(): SessionData {
   const now = new Date().toISOString();
   return { id: randomUUID(), createdAt: now, updatedAt: now, messages: [] };
 }
@@ -45,12 +45,4 @@ export function loadSession(projectDir: string, id: string): SessionData | null 
   const path = sessionPath(projectDir, id);
   if (!existsSync(path)) return null;
   return JSON.parse(readFileSync(path, "utf8")) as SessionData;
-}
-
-export function listSessions(projectDir: string): string[] {
-  const dir = sessionDir(projectDir);
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((f) => f.endsWith(".json"))
-    .map((f) => f.replace(/\.json$/, ""));
 }

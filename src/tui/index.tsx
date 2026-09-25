@@ -1,5 +1,4 @@
 import { render } from "ink";
-import React from "react";
 import type { AgentLoopDeps } from "../agent/loop.js";
 import type { SessionData } from "../agent/session.js";
 import { App } from "./App.js";

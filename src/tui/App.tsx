@@ -1,6 +1,6 @@
 import { type LanguageModel, type ModelMessage } from "ai";
 import { Box, Text, useApp, useInput } from "ink";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type AgentLoopDeps, type ApprovalDecision, type PendingApproval, type SkillUsed, runTurn } from "../agent/loop.js";
 import { ORIENTATION_PROMPT } from "../agent/onboarding.js";
 import { saveSession, type SessionData } from "../agent/session.js";

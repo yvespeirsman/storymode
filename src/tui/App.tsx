@@ -3,7 +3,7 @@ import { Box, Text, useApp, useInput } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type AgentLoopDeps, type ApprovalDecision, type PendingApproval, type SkillUsed, runTurn } from "../agent/loop.js";
 import { ORIENTATION_PROMPT } from "../agent/onboarding.js";
-import { saveSession, type SessionData } from "../agent/session.js";
+import { createSession, saveSession, type SessionData } from "../agent/session.js";
 import { listModels, modelExists, resolveLanguageModel } from "../agent/providers.js";
 import { resolveApiKeyForProvider, resolveConfig, saveProjectConfig } from "../project/config.js";
 import { providerIdSchema, type ProjectConfig } from "../project/schema.js";
@@ -27,6 +27,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
     usage: "/model [list [<provider>] | <provider> <model>]",
     description: "Show the active model, list available models, or switch model",
   },
+  { name: "/clear", usage: "/clear", description: "Clear the conversation and start a new session" },
   { name: "/help", usage: "/help", description: "List available commands" },
   { name: "/exit", usage: "/exit", description: "Leave the session" },
   { name: "/quit", usage: "/quit", description: "Leave the session (alias of /exit)" },
@@ -123,6 +124,13 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
     },
     [currentModel, currentProject, handleApprovalRequest, projectDir],
   );
+
+  const handleClearCommand = useCallback(() => {
+    sessionRef.current = createSession();
+    saveSession(projectDir, sessionRef.current);
+    setLog([]);
+    void submit(ORIENTATION_PROMPT, { display: false });
+  }, [projectDir, submit]);
 
   const handleModelListCommand = useCallback(
     async (providerArg: string | undefined) => {
@@ -281,6 +289,10 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
       setInput("");
       if (text === "/exit" || text === "/quit") {
         exit();
+        return;
+      }
+      if (text === "/clear") {
+        handleClearCommand();
         return;
       }
       if (text === "/model" || text.startsWith("/model ")) {

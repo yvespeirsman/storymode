@@ -96,6 +96,11 @@ and saves the choice to `.storymode/config.json` so it's remembered for
 next time. Run `/model` with no arguments to see the current model. Typing
 `/` on its own shows a list of all slash commands.
 
+Run `/clear` to wipe the conversation and start a fresh session in the same
+project — useful once the context has drifted or filled up with finished
+work. Your files (outline, bible, manuscript) are untouched; only the chat
+history resets, the same way it would if you started `storymode` fresh.
+
 Type `/exit` or `/quit`, or press `Ctrl+C`, to leave a session at any time.
 Come back to it later with:
 

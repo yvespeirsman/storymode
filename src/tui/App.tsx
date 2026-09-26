@@ -38,6 +38,44 @@ const MODEL_USAGE_TEXT =
 
 const SLASH_COMMANDS_HELP_TEXT = SLASH_COMMANDS.map((c) => `${c.usage} — ${c.description}`).join("\n");
 
+const TOOL_ACTIVITY_LABELS: Record<string, string> = {
+  draftOutline: "Gathering context",
+  updateOutline: "Drafting the outline",
+  updateBeats: "Drafting beats",
+  writeChapter: "Drafting the chapter",
+  appendScene: "Drafting the scene",
+  upsertCharacter: "Updating the character bible",
+  upsertLocation: "Updating the location bible",
+  readStyleGuide: "Checking the style guide",
+  extractContinuityFacts: "Extracting continuity facts",
+  checkContinuity: "Checking continuity",
+};
+
+function toolActivityLabel(toolName: string): string {
+  return TOOL_ACTIVITY_LABELS[toolName] ?? "Working";
+}
+
+const THINKING_WORDS = [
+  "Imagining",
+  "Confabulating",
+  "Daydreaming",
+  "Musing",
+  "Conjuring",
+  "Ruminating",
+  "Wordsmithing",
+  "Storycrafting",
+  "Fabulating",
+  "Plotting",
+  "Inventing",
+  "Envisioning",
+  "Scribbling",
+  "Percolating",
+];
+
+function randomThinkingWord(): string {
+  return THINKING_WORDS[Math.floor(Math.random() * THINKING_WORDS.length)] ?? "Thinking";
+}
+
 const ASCII_LOGO_STORY = [
   "████  █                ",
   "█▄▄▄ ▀█▀▀ █▀▀█ █▀▀ █  █",
@@ -78,6 +116,8 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [streamingText, setStreamingText] = useState<string | null>(null);
+  const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [thinkingWord, setThinkingWord] = useState(randomThinkingWord);
   const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
   const [currentModel, setCurrentModel] = useState<LanguageModel>(deps.model);
   const [currentProject, setCurrentProject] = useState<ProjectConfig>(deps.project);
@@ -98,6 +138,8 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
       if (display) setLog((prev) => [...prev, { role: "user", text }]);
       setBusy(true);
       setStreamingText("");
+      setActiveTool(null);
+      setThinkingWord(randomThinkingWord());
       try {
         const result = await runTurn(
           {
@@ -105,9 +147,13 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
             projectDir,
             project: currentProject,
             onApprovalRequest: handleApprovalRequest,
-            onTextDelta: (delta) => setStreamingText((prev) => (prev ?? "") + delta),
+            onTextDelta: (delta) => {
+              setStreamingText((prev) => (prev ?? "") + delta);
+              setActiveTool(null);
+            },
             onSkillUsed: (skill: SkillUsed) =>
               setLog((prev) => [...prev, { role: "skill", text: `Using skill: ${skill.name}` }]),
+            onToolCallStart: (toolName) => setActiveTool(toolName),
           },
           sessionRef.current.messages,
           text,
@@ -119,6 +165,7 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
         setLog((prev) => [...prev, { role: "error", text: err instanceof Error ? err.message : String(err) }]);
       } finally {
         setStreamingText(null);
+        setActiveTool(null);
         setBusy(false);
       }
     },
@@ -374,7 +421,12 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
               {streamingText}
               {streamingText.length === 0 ? (
                 <Text dimColor>
-                  <Spinner color="green" /> Thinking…
+                  <Spinner color="green" /> {thinkingWord}…
+                </Text>
+              ) : activeTool && !pendingApproval ? (
+                <Text dimColor>
+                  {"\n\n"}
+                  <Spinner color="green" /> {toolActivityLabel(activeTool)}…
                 </Text>
               ) : (
                 <Text dimColor>▌</Text>

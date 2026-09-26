@@ -46,6 +46,13 @@ export interface AgentLoopDeps {
   onTextDelta?: (delta: string) => void;
   /** Called synchronously when a skill-backed tool (e.g. draftOutline) is invoked. */
   onSkillUsed?: (skill: SkillUsed) => void;
+  /**
+   * Called the moment the model starts generating a tool call's arguments — including the (often
+   * large, slow-to-generate) content of write tools like updateOutline/writeChapter. No text-delta
+   * events fire during this phase, so without this callback the UI has no signal that anything is
+   * happening between "here's the draft I'd propose" and the approval prompt finally appearing.
+   */
+  onToolCallStart?: (toolName: string) => void;
 }
 
 function patch(path: string, oldText: string, newText: string): string {
@@ -375,6 +382,8 @@ export async function runTurn(deps: AgentLoopDeps, priorMessages: ModelMessage[]
       } else if (part.type === "text-delta") {
         combinedText += part.text;
         deps.onTextDelta?.(part.text);
+      } else if (part.type === "tool-input-start") {
+        deps.onToolCallStart?.(part.toolName);
       } else if (part.type === "tool-approval-request" && !part.isAutomatic) {
         approvalRequests.push(part);
       }

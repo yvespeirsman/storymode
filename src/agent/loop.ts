@@ -65,25 +65,39 @@ const DRAFT_OUTLINE_FALLBACK_DESCRIPTION =
   "Call this before drafting or revising the top-level outline. Returns drafting instructions " +
   "plus the story's lore, cast, and current outline in one call.";
 
+const DRAFT_CHARACTER_SKILL_ID = "draft-character";
+const DRAFT_CHARACTER_FALLBACK_DESCRIPTION =
+  "Call this before creating or updating a character's bible entry. Returns drafting instructions " +
+  "plus the story's lore and existing cast in one call.";
+
 /**
- * A model can ignore a prompt nudge and jump straight to updateOutline without gathering real
- * context first, producing near-empty or placeholder content. This is shared between buildTools
- * (which flips it once draftOutline runs) and runTurn's approval loop (which checks it before ever
- * showing the human an approval prompt for updateOutline — the diff is built from the model's raw
- * tool-call input, so blocking only inside execute() would still show a bogus approval prompt).
+ * Maps each content-generating write tool to the (skill-backed) tool that must be called first
+ * this turn — by tool name, not skill id, so the auto-reject reason below can tell the model
+ * exactly which tool to call. A model can ignore a prompt nudge and jump straight to a write tool
+ * without gathering real context first, producing near-empty or placeholder content. This is
+ * shared between buildTools (which records a prerequisite tool call) and runTurn's approval loop
+ * (which checks it before ever showing the human an approval prompt — the diff is built from the
+ * model's raw tool-call input, so blocking only inside execute() would still show a bogus prompt).
  */
-export interface OutlineGuardState {
-  draftOutlineCalled: boolean;
+const SKILL_PREREQUISITES: Record<string, string> = {
+  updateOutline: "draftOutline",
+  upsertCharacter: "draftCharacter",
+};
+
+export interface SkillGuardState {
+  calledTools: Set<string>;
 }
 
 /** Whether an approval request for this tool call should be auto-rejected without ever reaching the human. */
-export function shouldAutoRejectApproval(toolName: string, outlineGuard: OutlineGuardState): boolean {
-  return toolName === "updateOutline" && !outlineGuard.draftOutlineCalled;
+export function shouldAutoRejectApproval(toolName: string, guard: SkillGuardState): boolean {
+  const prerequisite = SKILL_PREREQUISITES[toolName];
+  return prerequisite !== undefined && !guard.calledTools.has(prerequisite);
 }
 
-export function buildTools(deps: AgentLoopDeps, outlineGuard: OutlineGuardState) {
+export function buildTools(deps: AgentLoopDeps, guard: SkillGuardState) {
   const { projectDir, model } = deps;
   const draftOutlineSkill = skillTools.readSkill(projectDir, DRAFT_OUTLINE_SKILL_ID);
+  const draftCharacterSkill = skillTools.readSkill(projectDir, DRAFT_CHARACTER_SKILL_ID);
 
   return {
     readFile: tool({
@@ -111,7 +125,7 @@ export function buildTools(deps: AgentLoopDeps, outlineGuard: OutlineGuardState)
       description: draftOutlineSkill?.description ?? DRAFT_OUTLINE_FALLBACK_DESCRIPTION,
       inputSchema: z.object({}),
       execute: async () => {
-        outlineGuard.draftOutlineCalled = true;
+        guard.calledTools.add("draftOutline");
         deps.onSkillUsed?.({ id: DRAFT_OUTLINE_SKILL_ID, name: draftOutlineSkill?.name ?? DRAFT_OUTLINE_SKILL_ID });
         return {
           instructions:
@@ -127,7 +141,7 @@ export function buildTools(deps: AgentLoopDeps, outlineGuard: OutlineGuardState)
       description: "Replace the top-level outline with new contents. Requires user approval. Call draftOutline first.",
       inputSchema: z.object({ contents: z.string() }),
       execute: async ({ contents }) => {
-        if (!outlineGuard.draftOutlineCalled) {
+        if (!guard.calledTools.has("draftOutline")) {
           throw new Error("Call draftOutline first to gather lore, cast, and the current outline, then retry.");
         }
         outlineTools.updateOutline(projectDir, contents);
@@ -200,12 +214,31 @@ export function buildTools(deps: AgentLoopDeps, outlineGuard: OutlineGuardState)
       inputSchema: z.object({ slug: z.string() }),
       execute: async ({ slug }) => bibleTools.readCharacter(projectDir, slug),
     }),
+    draftCharacter: tool({
+      description: draftCharacterSkill?.description ?? DRAFT_CHARACTER_FALLBACK_DESCRIPTION,
+      inputSchema: z.object({}),
+      execute: async () => {
+        guard.calledTools.add("draftCharacter");
+        deps.onSkillUsed?.({
+          id: DRAFT_CHARACTER_SKILL_ID,
+          name: draftCharacterSkill?.name ?? DRAFT_CHARACTER_SKILL_ID,
+        });
+        return {
+          instructions:
+            draftCharacterSkill?.instructions ??
+            `(no draft-character skill found — create ${skillTools.skillPath(DRAFT_CHARACTER_SKILL_ID)})`,
+          lore: bibleTools.readLore(projectDir) || "(no lore recorded yet)",
+          characters: bibleTools.listCharacters(projectDir).map((c) => ({ slug: c.slug, ...c.frontmatter, body: c.body })),
+        };
+      },
+    }),
     upsertCharacter: tool({
       description:
-        "Create or update a character's bible entry (name, role, traits, prose bio). Requires user approval. " +
-        "To edit or rename an EXISTING character, pass their current `slug` (from listCharacters/readCharacter) " +
-        "so the same file is updated in place — omitting it when a character already exists creates a duplicate " +
-        "file instead of renaming the original. Only omit `slug` when creating a brand-new character.",
+        "Create or update a character's bible entry (name, role, traits, prose bio). Call draftCharacter first. " +
+        "Requires user approval. To edit or rename an EXISTING character, pass their current `slug` (from " +
+        "listCharacters/readCharacter) so the same file is updated in place — omitting it when a character " +
+        "already exists creates a duplicate file instead of renaming the original. Only omit `slug` when " +
+        "creating a brand-new character.",
       inputSchema: z.object({
         slug: z.string().optional().describe("The existing character's slug, required when updating or renaming one"),
         name: z.string(),
@@ -214,6 +247,9 @@ export function buildTools(deps: AgentLoopDeps, outlineGuard: OutlineGuardState)
         body: z.string().optional(),
       }),
       execute: async (input) => {
+        if (!guard.calledTools.has("draftCharacter")) {
+          throw new Error("Call draftCharacter first to gather lore and the existing cast, then retry.");
+        }
         const result = bibleTools.upsertCharacter(projectDir, input);
         return `Character "${input.name}" saved at ${result.path}.`;
       },
@@ -344,8 +380,8 @@ export interface RunTurnResult {
 const MAX_APPROVAL_ROUNDS = 20;
 
 export async function runTurn(deps: AgentLoopDeps, priorMessages: ModelMessage[], userText: string): Promise<RunTurnResult> {
-  const outlineGuard: OutlineGuardState = { draftOutlineCalled: false };
-  const tools = buildTools(deps, outlineGuard);
+  const guard: SkillGuardState = { calledTools: new Set() };
+  const tools = buildTools(deps, guard);
   const toolApproval = buildToolApproval();
   const systemPrompt = buildSystemPrompt({
     project: deps.project,
@@ -402,12 +438,13 @@ export async function runTurn(deps: AgentLoopDeps, priorMessages: ModelMessage[]
       // Refuse before the human ever sees it, not just before writing: the diff below is built
       // straight from the model's raw tool-call input, so a premature call still produces a
       // (bogus) approval prompt unless we intercept it here.
-      if (shouldAutoRejectApproval(toolName, outlineGuard)) {
+      if (shouldAutoRejectApproval(toolName, guard)) {
+        const prerequisite = SKILL_PREREQUISITES[toolName];
         responses.push({
           type: "tool-approval-response" as const,
           approvalId: req.approvalId,
           approved: false,
-          reason: "Call draftOutline first to gather lore, cast, and the current outline, then retry updateOutline.",
+          reason: `Call ${prerequisite} first to gather context, then retry ${toolName}.`,
         });
         continue;
       }

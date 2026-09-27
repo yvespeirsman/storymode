@@ -44,6 +44,7 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
   updateBeats: "Drafting beats",
   writeChapter: "Drafting the chapter",
   appendScene: "Drafting the scene",
+  draftCharacter: "Gathering context",
   upsertCharacter: "Updating the character bible",
   upsertLocation: "Updating the location bible",
   readStyleGuide: "Checking the style guide",

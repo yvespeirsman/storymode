@@ -130,6 +130,8 @@ my-novel/
     skills/
       draft-outline/
         SKILL.md                # instructions the agent follows when drafting the outline
+      draft-character/
+        SKILL.md                # instructions the agent follows when drafting a character
     continuity/
       facts.jsonl               # canonical facts extracted from drafted chapters
     session/                    # saved conversation history, for `storymode continue`
@@ -179,9 +181,10 @@ hand or with `storymode style edit`.
 
 ## Skills
 
-Each stage of the writing process (currently: drafting the outline) has a
-matching skill file under `.storymode/skills/<name>/SKILL.md` — plain
-markdown with a small YAML header:
+Each stage of the writing process (currently: drafting the outline, drafting
+a character) has a matching skill file under
+`.storymode/skills/<name>/SKILL.md` — plain markdown with a small YAML
+header:
 
 ```
 ---

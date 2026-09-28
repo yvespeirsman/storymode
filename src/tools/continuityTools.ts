@@ -4,7 +4,7 @@ import { z } from "zod";
 import { type ContinuityFact, continuityFactSchema } from "../project/schema.js";
 import { projectFileExists, readProjectFile, writeProjectFile } from "./fileTools.js";
 
-const FACTS_PATH = ".storymode/continuity/facts.jsonl";
+const FACTS_PATH = "storymode/continuity/facts.jsonl";
 
 export function readFacts(projectDir: string): ContinuityFact[] {
   if (!projectFileExists(projectDir, FACTS_PATH)) return [];

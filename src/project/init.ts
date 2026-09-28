@@ -61,7 +61,7 @@ _voice you're going for._
 `;
 
 const GITIGNORE = `node_modules/
-.storymode/session/
+storymode/session/
 `;
 
 export interface InitResult {
@@ -77,7 +77,7 @@ function copySkillTemplates(projectDir: string, created: string[], skipped: stri
     const srcPath = join(SKILLS_TEMPLATE_DIR, entry.name, "SKILL.md");
     if (!existsSync(srcPath)) continue;
 
-    const destPath = join(projectDir, ".storymode", "skills", entry.name, "SKILL.md");
+    const destPath = join(projectDir, "storymode", "skills", entry.name, "SKILL.md");
     mkdirSync(dirname(destPath), { recursive: true });
     if (existsSync(destPath)) {
       skipped.push(destPath);
@@ -93,11 +93,11 @@ export function initProject(projectDir: string, title: string): InitResult {
   const skipped: string[] = [];
 
   const dirs = [
-    join(projectDir, ".storymode", "bible", "characters"),
-    join(projectDir, ".storymode", "bible", "locations"),
-    join(projectDir, ".storymode", "outline", "beats"),
-    join(projectDir, ".storymode", "continuity"),
-    join(projectDir, ".storymode", "session"),
+    join(projectDir, "storymode", "bible", "characters"),
+    join(projectDir, "storymode", "bible", "locations"),
+    join(projectDir, "storymode", "outline", "beats"),
+    join(projectDir, "storymode", "continuity"),
+    join(projectDir, "storymode", "session"),
     join(projectDir, "manuscript"),
   ];
   for (const dir of dirs) {
@@ -105,10 +105,10 @@ export function initProject(projectDir: string, title: string): InitResult {
   }
 
   const files: Array<[string, string]> = [
-    [join(projectDir, ".storymode", "outline", "outline.md"), OUTLINE_TEMPLATE],
-    [join(projectDir, ".storymode", "bible", "lore.md"), LORE_TEMPLATE],
-    [join(projectDir, ".storymode", "style.md"), STYLE_TEMPLATE],
-    [join(projectDir, ".storymode", "continuity", "facts.jsonl"), ""],
+    [join(projectDir, "storymode", "outline", "outline.md"), OUTLINE_TEMPLATE],
+    [join(projectDir, "storymode", "bible", "lore.md"), LORE_TEMPLATE],
+    [join(projectDir, "storymode", "style.md"), STYLE_TEMPLATE],
+    [join(projectDir, "storymode", "continuity", "facts.jsonl"), ""],
     [join(projectDir, ".gitignore"), GITIGNORE],
   ];
 
@@ -123,7 +123,7 @@ export function initProject(projectDir: string, title: string): InitResult {
 
   copySkillTemplates(projectDir, created, skipped);
 
-  const configPath = join(projectDir, ".storymode", "config.json");
+  const configPath = join(projectDir, "storymode", "config.json");
   if (!existsSync(configPath)) {
     saveProjectConfig(projectDir, projectConfigSchema.parse({ title }));
     created.push(configPath);

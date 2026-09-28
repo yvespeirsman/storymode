@@ -2,7 +2,7 @@ import { parseFrontmatter } from "../project/frontmatter.js";
 import { skillFrontmatterSchema, type SkillFrontmatter } from "../project/schema.js";
 import { projectFileExists, readProjectFile } from "./fileTools.js";
 
-const SKILLS_DIR = ".storymode/skills";
+const SKILLS_DIR = "storymode/skills";
 
 export interface Skill {
   name: string;

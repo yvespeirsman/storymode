@@ -92,7 +92,7 @@ fetch the models available for your current provider from its API (or
 `/model list openai` / `/model list anthropic` for a specific one). Switch
 model at any time with `/model <provider> <model>`, e.g. `/model openai
 gpt-5` — this checks the model exists for that provider before switching,
-and saves the choice to `.storymode/config.json` so it's remembered for
+and saves the choice to `storymode/config.json` so it's remembered for
 next time. Run `/model` with no arguments to see the current model. Typing
 `/` on its own shows a list of all slash commands.
 
@@ -117,7 +117,7 @@ starting a new one.
 
 ```
 my-novel/
-  .storymode/
+  storymode/
     config.json              # this project's title and model settings
     style.md                  # style guide: description and/or example passages
     bible/
@@ -174,7 +174,7 @@ Run any command with `--help` for its full options.
 
 ## Style guide
 
-`.storymode/style.md` is a project-specific markdown file where you can
+`storymode/style.md` is a project-specific markdown file where you can
 describe the voice you want (point of view, tense, sentence rhythm, tone) and/or
 paste in example passages to imitate. The agent reads it whenever a task
 actually needs it — drafting or revising a chapter or scene — rather than on
@@ -185,7 +185,7 @@ hand or with `storymode style edit`.
 
 Each stage of the writing process (currently: drafting the outline, drafting
 a character, drafting a chapter or scene) has a matching skill file under
-`.storymode/skills/<name>/SKILL.md` — plain markdown with a small YAML
+`storymode/skills/<name>/SKILL.md` — plain markdown with a small YAML
 header:
 
 ```
@@ -204,7 +204,7 @@ does. Both are hand-editable — tune the instructions, tighten or loosen the
 description, or extend them with your own conventions. Nothing else in the
 codebase needs to change for your edits to take effect.
 
-`storymode init` populates a project's `.storymode/skills/` by copying every
+`storymode init` populates a project's `storymode/skills/` by copying every
 `skills/<name>/SKILL.md` that ships with the package (`skills/` at the repo
 root, alongside `src/`) — so if you're developing StoryMode itself, edit the
 files there to change what new projects start with. It never overwrites a
@@ -215,7 +215,7 @@ independent from then on.
 
 As you draft chapters, ask the agent to run `extractContinuityFacts` (or just
 ask it to "remember what's established here") to pull out atomic facts —
-traits, dates, relationships, places — into `.storymode/continuity/facts.jsonl`.
+traits, dates, relationships, places — into `storymode/continuity/facts.jsonl`.
 Later, `storymode continuity check <chapterId>` (or asking the agent to check
 continuity) compares new text against everything recorded so far and flags
 contradictions, e.g. a character's eye color changing between chapters.
@@ -226,4 +226,4 @@ contradictions, e.g. a character's eye color changing between chapters.
   API. No other backend is involved.
 - Bring your own model: StoryMode works with any Anthropic or OpenAI model
   you have access to; set it with `storymode config set-default <provider> <model>`
-  or per-project in `.storymode/config.json`.
+  or per-project in `storymode/config.json`.

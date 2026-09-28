@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { ModelMessage } from "ai";
 
 function sessionDir(projectDir: string): string {
-  return join(projectDir, ".storymode", "session");
+  return join(projectDir, "storymode", "session");
 }
 
 function sessionPath(projectDir: string, id: string): string {

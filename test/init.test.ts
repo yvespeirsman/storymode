@@ -20,7 +20,7 @@ describe("initProject", () => {
   it("doesn't overwrite a skill file the user has already customized", () => {
     withTempProject((dir) => {
       initProject(dir, "The Salt Road");
-      const skillPath = ".storymode/skills/draft-outline/SKILL.md";
+      const skillPath = "storymode/skills/draft-outline/SKILL.md";
       const before = readSkill(dir, "draft-outline");
 
       // Simulate a hand edit, then re-run init.

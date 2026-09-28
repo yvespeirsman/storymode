@@ -1,7 +1,7 @@
 import { listProjectFiles, projectFileExists, readProjectFile, writeProjectFile } from "./fileTools.js";
 
-const OUTLINE_PATH = ".storymode/outline/outline.md";
-const BEATS_DIR = ".storymode/outline/beats";
+const OUTLINE_PATH = "storymode/outline/outline.md";
+const BEATS_DIR = "storymode/outline/beats";
 
 export function readOutline(projectDir: string): string {
   if (!projectFileExists(projectDir, OUTLINE_PATH)) return "";

@@ -83,7 +83,7 @@ describe("bibleTools", () => {
   it("reads lore, defaulting to empty when the file doesn't exist yet", () => {
     withTempProject((dir) => {
       expect(readLore(dir)).toBe("");
-      writeProjectFile(dir, ".storymode/bible/lore.md", "# Lore\n\nThe tide god sleeps beneath the harbor.");
+      writeProjectFile(dir, "storymode/bible/lore.md", "# Lore\n\nThe tide god sleeps beneath the harbor.");
       expect(readLore(dir)).toContain("tide god");
     });
   });

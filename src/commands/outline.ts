@@ -30,7 +30,7 @@ export function registerOutlineCommand(program: Command, getProjectDir: () => st
     .description("Open the top-level outline in $EDITOR")
     .action(() => {
       const projectDir = getProjectDir();
-      openInEditor(join(projectDir, ".storymode", "outline", "outline.md"));
+      openInEditor(join(projectDir, "storymode", "outline", "outline.md"));
     });
 
   outline

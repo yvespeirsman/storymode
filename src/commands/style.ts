@@ -24,6 +24,6 @@ export function registerStyleCommand(program: Command, getProjectDir: () => stri
     .description("Open the style guide in $EDITOR")
     .action(() => {
       const projectDir = getProjectDir();
-      openInEditor(join(projectDir, ".storymode", "style.md"));
+      openInEditor(join(projectDir, "storymode", "style.md"));
     });
 }

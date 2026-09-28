@@ -37,7 +37,7 @@ export function saveGlobalConfig(config: GlobalConfig): void {
 }
 
 export function projectConfigPath(projectDir: string): string {
-  return join(projectDir, ".storymode", "config.json");
+  return join(projectDir, "storymode", "config.json");
 }
 
 export function loadProjectConfig(projectDir: string): ProjectConfig {
@@ -50,7 +50,7 @@ export function loadProjectConfig(projectDir: string): ProjectConfig {
 }
 
 export function saveProjectConfig(projectDir: string, config: ProjectConfig): void {
-  mkdirSync(join(projectDir, ".storymode"), { recursive: true });
+  mkdirSync(join(projectDir, "storymode"), { recursive: true });
   writeFileSync(projectConfigPath(projectDir), JSON.stringify(config, null, 2) + "\n", "utf8");
 }
 

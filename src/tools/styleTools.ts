@@ -1,6 +1,6 @@
 import { projectFileExists, readProjectFile, writeProjectFile } from "./fileTools.js";
 
-const STYLE_PATH = ".storymode/style.md";
+const STYLE_PATH = "storymode/style.md";
 
 export function readStyleGuide(projectDir: string): string {
   if (!projectFileExists(projectDir, STYLE_PATH)) return "";

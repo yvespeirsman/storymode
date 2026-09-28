@@ -70,6 +70,11 @@ const DRAFT_CHARACTER_FALLBACK_DESCRIPTION =
   "Call this before creating or updating a character's bible entry. Returns drafting instructions " +
   "plus the story's lore and existing cast in one call.";
 
+const DRAFT_CHAPTER_SKILL_ID = "draft-chapter";
+const DRAFT_CHAPTER_FALLBACK_DESCRIPTION =
+  "Call this before drafting or revising a chapter or scene. Returns drafting instructions plus the " +
+  "style guide, this chapter's beat sheet, and its current content in one call.";
+
 /**
  * Maps each content-generating write tool to the (skill-backed) tool that must be called first
  * this turn — by tool name, not skill id, so the auto-reject reason below can tell the model
@@ -82,6 +87,8 @@ const DRAFT_CHARACTER_FALLBACK_DESCRIPTION =
 const SKILL_PREREQUISITES: Record<string, string> = {
   updateOutline: "draftOutline",
   upsertCharacter: "draftCharacter",
+  writeChapter: "draftChapter",
+  appendScene: "draftChapter",
 };
 
 export interface SkillGuardState {
@@ -98,6 +105,7 @@ export function buildTools(deps: AgentLoopDeps, guard: SkillGuardState) {
   const { projectDir, model } = deps;
   const draftOutlineSkill = skillTools.readSkill(projectDir, DRAFT_OUTLINE_SKILL_ID);
   const draftCharacterSkill = skillTools.readSkill(projectDir, DRAFT_CHARACTER_SKILL_ID);
+  const draftChapterSkill = skillTools.readSkill(projectDir, DRAFT_CHAPTER_SKILL_ID);
 
   return {
     readFile: tool({
@@ -164,9 +172,9 @@ export function buildTools(deps: AgentLoopDeps, guard: SkillGuardState) {
 
     readStyleGuide: tool({
       description:
-        "Call this before drafting or revising prose (a chapter or scene) so the voice stays " +
-        "consistent — point of view, tense, rhythm, tone, and any example passages. Not needed for " +
-        "structural work like the outline or beat sheets.",
+        "Read the style guide on its own, without the rest of draftChapter's bundle (beat sheet, " +
+        "current chapter content). draftChapter already includes this — call it instead before " +
+        "writing prose. Use this only for a quick standalone check mid-conversation.",
       inputSchema: z.object({}),
       execute: async () => styleTools.readStyleGuide(projectDir) || "(no style guide recorded yet)",
     }),
@@ -182,22 +190,40 @@ export function buildTools(deps: AgentLoopDeps, guard: SkillGuardState) {
       execute: async ({ chapterId }) =>
         manuscriptTools.readChapter(projectDir, chapterId) || "(chapter is empty or does not exist yet)",
     }),
+    draftChapter: tool({
+      description: draftChapterSkill?.description ?? DRAFT_CHAPTER_FALLBACK_DESCRIPTION,
+      inputSchema: z.object({ chapterId: z.string().describe('The chapter to draft or revise, e.g. "ch01"') }),
+      execute: async ({ chapterId }) => {
+        guard.calledTools.add("draftChapter");
+        deps.onSkillUsed?.({ id: DRAFT_CHAPTER_SKILL_ID, name: draftChapterSkill?.name ?? DRAFT_CHAPTER_SKILL_ID });
+        return {
+          instructions:
+            draftChapterSkill?.instructions ??
+            `(no draft-chapter skill found — create ${skillTools.skillPath(DRAFT_CHAPTER_SKILL_ID)})`,
+          styleGuide: styleTools.readStyleGuide(projectDir) || "(no style guide recorded yet)",
+          beats: outlineTools.readBeats(projectDir, chapterId) || "(no beats recorded yet)",
+          currentChapter: manuscriptTools.readChapter(projectDir, chapterId) || "(chapter is empty or does not exist yet)",
+        };
+      },
+    }),
     writeChapter: tool({
-      description:
-        "Overwrite a chapter file with new full contents. Call readStyleGuide first if you haven't " +
-        "already this session. Requires user approval.",
+      description: "Overwrite a chapter file with new full contents. Call draftChapter first. Requires user approval.",
       inputSchema: z.object({ chapterId: z.string(), contents: z.string() }),
       execute: async ({ chapterId, contents }) => {
+        if (!guard.calledTools.has("draftChapter")) {
+          throw new Error("Call draftChapter first to gather the style guide, beats, and current content, then retry.");
+        }
         manuscriptTools.writeChapter(projectDir, chapterId, contents);
         return `Chapter "${chapterId}" written (${manuscriptTools.wordCount(contents)} words).`;
       },
     }),
     appendScene: tool({
-      description:
-        "Append a new scene to the end of a chapter. Call readStyleGuide first if you haven't " +
-        "already this session. Requires user approval.",
+      description: "Append a new scene to the end of a chapter. Call draftChapter first. Requires user approval.",
       inputSchema: z.object({ chapterId: z.string(), sceneText: z.string() }),
       execute: async ({ chapterId, sceneText }) => {
+        if (!guard.calledTools.has("draftChapter")) {
+          throw new Error("Call draftChapter first to gather the style guide, beats, and current content, then retry.");
+        }
         const { newContents } = manuscriptTools.buildAppendScene(projectDir, chapterId, sceneText);
         manuscriptTools.writeChapter(projectDir, chapterId, newContents);
         return `Scene appended to "${chapterId}" (${manuscriptTools.wordCount(newContents)} words total).`;

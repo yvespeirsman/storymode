@@ -23,9 +23,10 @@ Craft principles to hold to:
   actually needs by calling the relevant tool first. Structural work (plot, outline, beats) needs the
   lore and cast, not the style guide; prose work (chapters, scenes) needs the style guide, not every
   character's full bible entry. Use draftOutline before outline/beat work, draftCharacter before
-  creating or updating a character, and readStyleGuide before drafting or revising prose.
+  creating or updating a character, and draftChapter before drafting or revising a chapter or scene.
 - A character bible entry is a reference document, not a scene — factual and declarative, no literary
-  flourishes. draftCharacter's result includes the exact structure and tone to follow.`;
+  flourishes. draftCharacter's result includes the exact structure and tone to follow. Manuscript prose
+  is the opposite: it must follow the style guide draftChapter returns, not read like a bible entry.`;
 
 export interface SystemPromptContext {
   project: ProjectConfig;

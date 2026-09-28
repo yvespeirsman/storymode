@@ -8,6 +8,7 @@ import { listModels, modelExists, resolveLanguageModel } from "../agent/provider
 import { resolveApiKeyForProvider, resolveConfig, saveProjectConfig } from "../project/config.js";
 import { providerIdSchema, type ProjectConfig } from "../project/schema.js";
 import { DiffView } from "./DiffView.js";
+import { MarkdownText } from "./MarkdownText.js";
 import { Spinner } from "./Spinner.js";
 
 interface DisplayMessage {
@@ -410,7 +411,7 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
                       ? "system"
                       : "storymode"}
               </Text>
-              <Text>{entry.text}</Text>
+              <MarkdownText>{entry.text}</MarkdownText>
             </Box>
           ),
         )}
@@ -420,7 +421,7 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
               storymode
             </Text>
             <Text>
-              {streamingText}
+              <MarkdownText>{streamingText}</MarkdownText>
               {streamingText.length === 0 ? (
                 <Text dimColor>
                   <Spinner color="green" /> {thinkingWord}…

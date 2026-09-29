@@ -127,6 +127,12 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
   const [modelLabel, setModelLabel] = useState(initialModelLabel);
   const sessionRef = useRef(session);
   const approvalResolveRef = useRef<((decision: ApprovalDecision) => void) | null>(null);
+  // Submitted-line history for up/down-arrow recall, shell-style. historyIndex null means the
+  // user is at their live draft, not browsing; draft holds what they'd typed before pressing up,
+  // so pressing down past the newest entry restores it instead of clearing to empty.
+  const historyRef = useRef<string[]>([]);
+  const historyIndexRef = useRef<number | null>(null);
+  const draftRef = useRef("");
 
   const handleApprovalRequest = useCallback((approval: PendingApproval): Promise<ApprovalDecision> => {
     setPendingApproval(approval);
@@ -337,6 +343,12 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
     if (key.return) {
       const text = input.trim();
       setInput("");
+      if (text.length > 0) {
+        const lastEntry = historyRef.current[historyRef.current.length - 1];
+        if (lastEntry !== text) historyRef.current.push(text);
+      }
+      historyIndexRef.current = null;
+      draftRef.current = "";
       if (text === "/exit" || text === "/quit") {
         exit();
         return;
@@ -354,6 +366,30 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
         return;
       }
       if (text.length > 0) void submit(text);
+      return;
+    }
+    if (key.upArrow) {
+      const history = historyRef.current;
+      if (history.length === 0) return;
+      if (historyIndexRef.current === null) {
+        draftRef.current = input;
+        historyIndexRef.current = history.length - 1;
+      } else if (historyIndexRef.current > 0) {
+        historyIndexRef.current -= 1;
+      }
+      setInput(history[historyIndexRef.current] ?? "");
+      return;
+    }
+    if (key.downArrow) {
+      if (historyIndexRef.current === null) return;
+      const history = historyRef.current;
+      if (historyIndexRef.current < history.length - 1) {
+        historyIndexRef.current += 1;
+        setInput(history[historyIndexRef.current] ?? "");
+      } else {
+        historyIndexRef.current = null;
+        setInput(draftRef.current);
+      }
       return;
     }
     if (key.backspace || key.delete) {

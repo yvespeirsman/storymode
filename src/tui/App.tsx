@@ -163,6 +163,14 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
             onSkillUsed: (skill: SkillUsed) =>
               setLog((prev) => [...prev, { role: "skill", text: `Using skill: ${skill.name}` }]),
             onToolCallStart: (toolName) => setActiveTool(toolName),
+            onCompaction: (info) =>
+              setLog((prev) => [
+                ...prev,
+                {
+                  role: "status",
+                  text: `Compacted ${info.summarizedCount} earlier message(s) into a summary to save context.`,
+                },
+              ]),
           },
           sessionRef.current.messages,
           text,

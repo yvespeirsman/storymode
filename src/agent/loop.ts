@@ -9,6 +9,7 @@ import * as manuscriptTools from "../tools/manuscriptTools.js";
 import * as outlineTools from "../tools/outlineTools.js";
 import * as skillTools from "../tools/skillTools.js";
 import * as styleTools from "../tools/styleTools.js";
+import { compactMessages } from "./compaction.js";
 import { buildSystemPrompt } from "./systemPrompt.js";
 
 const WRITE_TOOL_NAMES = [
@@ -53,6 +54,8 @@ export interface AgentLoopDeps {
    * happening between "here's the draft I'd propose" and the approval prompt finally appearing.
    */
   onToolCallStart?: (toolName: string) => void;
+  /** Called when the prior conversation history was summarized to keep requests from growing unbounded. */
+  onCompaction?: (info: { summarizedCount: number; keptCount: number }) => void;
 }
 
 function patch(path: string, oldText: string, newText: string): string {
@@ -406,6 +409,11 @@ export interface RunTurnResult {
 const MAX_APPROVAL_ROUNDS = 20;
 
 export async function runTurn(deps: AgentLoopDeps, priorMessages: ModelMessage[], userText: string): Promise<RunTurnResult> {
+  const compaction = await compactMessages(deps.model, priorMessages);
+  if (compaction.compacted) {
+    deps.onCompaction?.({ summarizedCount: compaction.summarizedCount, keptCount: compaction.messages.length });
+  }
+
   const guard: SkillGuardState = { calledTools: new Set() };
   const tools = buildTools(deps, guard);
   const toolApproval = buildToolApproval();
@@ -415,7 +423,7 @@ export async function runTurn(deps: AgentLoopDeps, priorMessages: ModelMessage[]
     activeText: userText,
   });
 
-  let messages: ModelMessage[] = [...priorMessages, { role: "user", content: userText }];
+  let messages: ModelMessage[] = [...compaction.messages, { role: "user", content: userText }];
 
   let combinedText = "";
 

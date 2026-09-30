@@ -1,8 +1,10 @@
 ---
 name: draft-chapter
-description: Draft or revise manuscript prose (writeChapter or appendScene).
-  Call before writing a chapter or scene; not needed for the outline,
-  character bible, or other structural work.
+description: Draft or revise a chapter or scene. Runs as its own focused
+  sub-agent — give it the chapter id and a clear, self-contained brief of
+  what should happen; it gathers the style guide/beats/current content
+  itself and handles the whole draft and the approval-gated save. Not
+  needed for the outline, character bible, or other structural work.
 ---
 
 Apply the style guide included in this tool's result exactly — point of
@@ -28,6 +30,15 @@ Keep character voices, physical details, and established facts consistent
 with their bible entries and previously recorded continuity facts — check
 listCharacters/readCharacter or checkContinuity if you're unsure rather
 than guessing or inventing.
+
+The immediately preceding chapter is included above for continuity — match
+its concrete details: character names (including minor or incidental ones
+introduced in passing), settings, physical descriptions, established
+events, timeline, and chapter-heading format. Don't invent a new name for
+someone who already appeared unnamed; don't contradict a place, date, or
+age already established. If the brief references something from further
+back than that one chapter, use listChapters/readChapter to check it
+rather than guessing.
 
 writeChapter replaces the whole chapter file; the current contents are
 included above so you can preserve anything the writer didn't ask you to

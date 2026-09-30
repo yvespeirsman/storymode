@@ -1,7 +1,14 @@
 import { type LanguageModel, type ModelMessage } from "ai";
 import { Box, Text, useApp, useInput } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type AgentLoopDeps, type ApprovalDecision, type PendingApproval, type SkillUsed, runTurn } from "../agent/loop.js";
+import {
+  type AgentLoopDeps,
+  type ApprovalDecision,
+  type PendingApproval,
+  type SkillUsed,
+  type SubAgentStarted,
+  runTurn,
+} from "../agent/loop.js";
 import { ORIENTATION_PROMPT } from "../agent/onboarding.js";
 import { createSession, saveSession, type SessionData } from "../agent/session.js";
 import { listModels, modelExists, resolveLanguageModel } from "../agent/providers.js";
@@ -12,7 +19,7 @@ import { MarkdownText } from "./MarkdownText.js";
 import { Spinner } from "./Spinner.js";
 
 interface DisplayMessage {
-  role: "user" | "assistant" | "status" | "error" | "skill";
+  role: "user" | "assistant" | "status" | "error" | "skill" | "subagent";
   text: string;
 }
 
@@ -43,13 +50,16 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
   draftOutline: "Gathering context",
   updateOutline: "Drafting the outline",
   updateBeats: "Drafting beats",
-  draftChapter: "Gathering context",
+  draftChapter: "Drafting the chapter",
   writeChapter: "Drafting the chapter",
   appendScene: "Drafting the scene",
   draftCharacter: "Gathering context",
   upsertCharacter: "Updating the character bible",
   upsertLocation: "Updating the location bible",
   readStyleGuide: "Checking the style guide",
+  readLore: "Checking the story bible",
+  readChapter: "Checking previous chapters",
+  listChapters: "Checking previous chapters",
   extractContinuityFacts: "Extracting continuity facts",
   checkContinuity: "Checking continuity",
 };
@@ -162,6 +172,16 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
             },
             onSkillUsed: (skill: SkillUsed) =>
               setLog((prev) => [...prev, { role: "skill", text: `Using skill: ${skill.name}` }]),
+            onSubAgentStarted: (subAgent: SubAgentStarted) =>
+              setLog((prev) => [
+                ...prev,
+                {
+                  role: "subagent",
+                  text: subAgent.detail
+                    ? `Handing off to sub-agent: ${subAgent.name} (${subAgent.detail})`
+                    : `Handing off to sub-agent: ${subAgent.name}`,
+                },
+              ]),
             onToolCallStart: (toolName) => setActiveTool(toolName),
             onCompaction: (info) =>
               setLog((prev) => [
@@ -431,6 +451,12 @@ export function App({ deps, session, projectDir, modelLabel: initialModelLabel }
             <Box key={i} marginBottom={1}>
               <Text dimColor color="magenta">
                 ✧ {entry.text}
+              </Text>
+            </Box>
+          ) : entry.role === "subagent" ? (
+            <Box key={i} marginBottom={1}>
+              <Text bold color="blue">
+                ◆ {entry.text}
               </Text>
             </Box>
           ) : (

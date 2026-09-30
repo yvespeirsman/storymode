@@ -1,5 +1,5 @@
 import { createTwoFilesPatch } from "diff";
-import { type LanguageModel, type ModelMessage, stepCountIs, streamText, tool } from "ai";
+import { type LanguageModel, type ModelMessage, tool } from "ai";
 import { z } from "zod";
 import type { ProjectConfig } from "../project/schema.js";
 import * as bibleTools from "../tools/bibleTools.js";
@@ -9,33 +9,25 @@ import * as manuscriptTools from "../tools/manuscriptTools.js";
 import * as outlineTools from "../tools/outlineTools.js";
 import * as skillTools from "../tools/skillTools.js";
 import * as styleTools from "../tools/styleTools.js";
+import { runAgenticLoop, type ApprovalDecision, type PendingApproval, type RunTurnResult } from "./agenticLoop.js";
 import { compactMessages } from "./compaction.js";
+import { runDraftChapterAgent } from "./draftChapterAgent.js";
 import { buildSystemPrompt } from "./systemPrompt.js";
 
-const WRITE_TOOL_NAMES = [
-  "updateOutline",
-  "updateBeats",
-  "writeChapter",
-  "appendScene",
-  "upsertCharacter",
-  "upsertLocation",
-] as const;
+export type { ApprovalDecision, PendingApproval, RunTurnResult } from "./agenticLoop.js";
 
-export interface PendingApproval {
-  approvalId: string;
-  toolName: string;
-  description: string;
-  diffText: string | null;
-}
-
-export interface ApprovalDecision {
-  approved: boolean;
-  reason?: string;
-}
+const WRITE_TOOL_NAMES = ["updateOutline", "updateBeats", "upsertCharacter", "upsertLocation"] as const;
 
 export interface SkillUsed {
   id: string;
   name: string;
+}
+
+export interface SubAgentStarted {
+  id: string;
+  name: string;
+  /** Short identifying detail for the log line, e.g. the chapter id being drafted. */
+  detail?: string;
 }
 
 export interface AgentLoopDeps {
@@ -47,11 +39,13 @@ export interface AgentLoopDeps {
   onTextDelta?: (delta: string) => void;
   /** Called synchronously when a skill-backed tool (e.g. draftOutline) is invoked. */
   onSkillUsed?: (skill: SkillUsed) => void;
+  /** Called synchronously when a tool hands off to its own nested sub-agent (e.g. draftChapter). */
+  onSubAgentStarted?: (subAgent: SubAgentStarted) => void;
   /**
    * Called the moment the model starts generating a tool call's arguments — including the (often
-   * large, slow-to-generate) content of write tools like updateOutline/writeChapter. No text-delta
-   * events fire during this phase, so without this callback the UI has no signal that anything is
-   * happening between "here's the draft I'd propose" and the approval prompt finally appearing.
+   * large, slow-to-generate) content of write tools like updateOutline. No text-delta events fire
+   * during this phase, so without this callback the UI has no signal that anything is happening
+   * between "here's the draft I'd propose" and the approval prompt finally appearing.
    */
   onToolCallStart?: (toolName: string) => void;
   /** Called when the prior conversation history was summarized to keep requests from growing unbounded. */
@@ -75,23 +69,21 @@ const DRAFT_CHARACTER_FALLBACK_DESCRIPTION =
 
 const DRAFT_CHAPTER_SKILL_ID = "draft-chapter";
 const DRAFT_CHAPTER_FALLBACK_DESCRIPTION =
-  "Call this before drafting or revising a chapter or scene. Returns drafting instructions plus the " +
-  "style guide, this chapter's beat sheet, and its current content in one call.";
+  "Draft or revise a chapter or scene. Runs as a focused sub-agent that handles the style guide, " +
+  "beats, continuity, and the actual (approval-gated) write itself — give it a clear brief.";
 
 /**
  * Maps each content-generating write tool to the (skill-backed) tool that must be called first
  * this turn — by tool name, not skill id, so the auto-reject reason below can tell the model
  * exactly which tool to call. A model can ignore a prompt nudge and jump straight to a write tool
  * without gathering real context first, producing near-empty or placeholder content. This is
- * shared between buildTools (which records a prerequisite tool call) and runTurn's approval loop
- * (which checks it before ever showing the human an approval prompt — the diff is built from the
- * model's raw tool-call input, so blocking only inside execute() would still show a bogus prompt).
+ * shared between buildTools (which records a prerequisite tool call) and the agentic loop (which
+ * checks it before ever showing the human an approval prompt — the diff is built from the model's
+ * raw tool-call input, so blocking only inside execute() would still show a bogus prompt).
  */
 const SKILL_PREREQUISITES: Record<string, string> = {
   updateOutline: "draftOutline",
   upsertCharacter: "draftCharacter",
-  writeChapter: "draftChapter",
-  appendScene: "draftChapter",
 };
 
 export interface SkillGuardState {
@@ -174,10 +166,7 @@ export function buildTools(deps: AgentLoopDeps, guard: SkillGuardState) {
     }),
 
     readStyleGuide: tool({
-      description:
-        "Read the style guide on its own, without the rest of draftChapter's bundle (beat sheet, " +
-        "current chapter content). draftChapter already includes this — call it instead before " +
-        "writing prose. Use this only for a quick standalone check mid-conversation.",
+      description: "Read the project's style guide (point of view, tense, rhythm, tone, example passages).",
       inputSchema: z.object({}),
       execute: async () => styleTools.readStyleGuide(projectDir) || "(no style guide recorded yet)",
     }),
@@ -195,41 +184,27 @@ export function buildTools(deps: AgentLoopDeps, guard: SkillGuardState) {
     }),
     draftChapter: tool({
       description: draftChapterSkill?.description ?? DRAFT_CHAPTER_FALLBACK_DESCRIPTION,
-      inputSchema: z.object({ chapterId: z.string().describe('The chapter to draft or revise, e.g. "ch01"') }),
-      execute: async ({ chapterId }) => {
-        guard.calledTools.add("draftChapter");
-        deps.onSkillUsed?.({ id: DRAFT_CHAPTER_SKILL_ID, name: draftChapterSkill?.name ?? DRAFT_CHAPTER_SKILL_ID });
-        return {
-          instructions:
-            draftChapterSkill?.instructions ??
-            `(no draft-chapter skill found — create ${skillTools.skillPath(DRAFT_CHAPTER_SKILL_ID)})`,
-          styleGuide: styleTools.readStyleGuide(projectDir) || "(no style guide recorded yet)",
-          beats: outlineTools.readBeats(projectDir, chapterId) || "(no beats recorded yet)",
-          currentChapter: manuscriptTools.readChapter(projectDir, chapterId) || "(chapter is empty or does not exist yet)",
-        };
-      },
-    }),
-    writeChapter: tool({
-      description: "Overwrite a chapter file with new full contents. Call draftChapter first. Requires user approval.",
-      inputSchema: z.object({ chapterId: z.string(), contents: z.string() }),
-      execute: async ({ chapterId, contents }) => {
-        if (!guard.calledTools.has("draftChapter")) {
-          throw new Error("Call draftChapter first to gather the style guide, beats, and current content, then retry.");
-        }
-        manuscriptTools.writeChapter(projectDir, chapterId, contents);
-        return `Chapter "${chapterId}" written (${manuscriptTools.wordCount(contents)} words).`;
-      },
-    }),
-    appendScene: tool({
-      description: "Append a new scene to the end of a chapter. Call draftChapter first. Requires user approval.",
-      inputSchema: z.object({ chapterId: z.string(), sceneText: z.string() }),
-      execute: async ({ chapterId, sceneText }) => {
-        if (!guard.calledTools.has("draftChapter")) {
-          throw new Error("Call draftChapter first to gather the style guide, beats, and current content, then retry.");
-        }
-        const { newContents } = manuscriptTools.buildAppendScene(projectDir, chapterId, sceneText);
-        manuscriptTools.writeChapter(projectDir, chapterId, newContents);
-        return `Scene appended to "${chapterId}" (${manuscriptTools.wordCount(newContents)} words total).`;
+      inputSchema: z.object({
+        chapterId: z.string().describe('The chapter to draft or revise, e.g. "ch01"'),
+        brief: z
+          .string()
+          .describe(
+            "What this chapter (or revision) should accomplish: plot beats, POV, key events, what the " +
+              "writer asked for. The sub-agent doesn't see the rest of this conversation — include " +
+              "everything it needs to draft or revise the chapter on its own.",
+          ),
+      }),
+      execute: async ({ chapterId, brief }) => {
+        deps.onSubAgentStarted?.({
+          id: DRAFT_CHAPTER_SKILL_ID,
+          name: draftChapterSkill?.name ?? DRAFT_CHAPTER_SKILL_ID,
+          detail: chapterId,
+        });
+        // Deliberately don't forward onTextDelta: the sub-agent's own narration would stream
+        // into the same live text block as the outer model's, then vanish when the turn ends
+        // (the final log entry only keeps the outer loop's text). Its return value still reaches
+        // the outer model as the tool result, which decides what to relay to the user.
+        return runDraftChapterAgent({ ...deps, onTextDelta: undefined }, chapterId, brief);
       },
     }),
 
@@ -359,26 +334,6 @@ function describeDiff(
           diffText: patch(`beats/${chapterId}.md`, oldText, String(input.contents)),
         };
       }
-      case "writeChapter": {
-        const chapterId = String(input.chapterId);
-        const oldText = manuscriptTools.readChapter(projectDir, chapterId);
-        return {
-          description: `Write chapter "${chapterId}"`,
-          diffText: patch(`manuscript/${chapterId}.md`, oldText, String(input.contents)),
-        };
-      }
-      case "appendScene": {
-        const chapterId = String(input.chapterId);
-        const { oldContents, newContents } = manuscriptTools.buildAppendScene(
-          projectDir,
-          chapterId,
-          String(input.sceneText),
-        );
-        return {
-          description: `Append scene to "${chapterId}"`,
-          diffText: patch(`manuscript/${chapterId}.md`, oldContents, newContents),
-        };
-      }
       case "upsertCharacter": {
         const result = bibleTools.buildCharacterUpsert(projectDir, input as { slug?: string; name: string });
         return {
@@ -401,13 +356,6 @@ function describeDiff(
   }
 }
 
-export interface RunTurnResult {
-  text: string;
-  messages: ModelMessage[];
-}
-
-const MAX_APPROVAL_ROUNDS = 20;
-
 export async function runTurn(deps: AgentLoopDeps, priorMessages: ModelMessage[], userText: string): Promise<RunTurnResult> {
   const compaction = await compactMessages(deps.model, priorMessages);
   if (compaction.compacted) {
@@ -423,82 +371,21 @@ export async function runTurn(deps: AgentLoopDeps, priorMessages: ModelMessage[]
     activeText: userText,
   });
 
-  let messages: ModelMessage[] = [...compaction.messages, { role: "user", content: userText }];
+  const messages: ModelMessage[] = [...compaction.messages, { role: "user", content: userText }];
 
-  let combinedText = "";
-
-  for (let round = 0; round < MAX_APPROVAL_ROUNDS; round++) {
-    const result = streamText({
-      model: deps.model,
-      system: systemPrompt,
-      messages,
-      tools,
-      toolApproval,
-      stopWhen: stepCountIs(8),
-    });
-
-    const approvalRequests: Array<{ approvalId: string; toolCall: { toolName: string; input: unknown } }> = [];
-
-    for await (const part of result.stream) {
-      if (part.type === "text-start") {
-        // Each text block (e.g. before/after a tool call) streams independently and rarely
-        // starts with its own leading space, so without this two sentences from different
-        // blocks can run together with no space between them.
-        if (combinedText.length > 0 && !/\s$/.test(combinedText)) {
-          const separator = "\n\n";
-          combinedText += separator;
-          deps.onTextDelta?.(separator);
-        }
-      } else if (part.type === "text-delta") {
-        combinedText += part.text;
-        deps.onTextDelta?.(part.text);
-      } else if (part.type === "tool-input-start") {
-        deps.onToolCallStart?.(part.toolName);
-      } else if (part.type === "tool-approval-request" && !part.isAutomatic) {
-        approvalRequests.push(part);
-      }
-    }
-
-    messages = [...messages, ...(await result.responseMessages)];
-
-    if (approvalRequests.length === 0) {
-      return { text: combinedText, messages };
-    }
-
-    const responses = [];
-    for (const req of approvalRequests) {
-      const { toolName, input } = req.toolCall;
-
-      // Refuse before the human ever sees it, not just before writing: the diff below is built
-      // straight from the model's raw tool-call input, so a premature call still produces a
-      // (bogus) approval prompt unless we intercept it here.
-      if (shouldAutoRejectApproval(toolName, guard)) {
-        const prerequisite = SKILL_PREREQUISITES[toolName];
-        responses.push({
-          type: "tool-approval-response" as const,
-          approvalId: req.approvalId,
-          approved: false,
-          reason: `Call ${prerequisite} first to gather context, then retry ${toolName}.`,
-        });
-        continue;
-      }
-
-      const diff = describeDiff(deps.projectDir, toolName, (input ?? {}) as Record<string, unknown>);
-      const decision = await deps.onApprovalRequest({
-        approvalId: req.approvalId,
-        toolName,
-        description: diff?.description ?? toolName,
-        diffText: diff?.diffText ?? null,
-      });
-      responses.push({
-        type: "tool-approval-response" as const,
-        approvalId: req.approvalId,
-        approved: decision.approved,
-        reason: decision.reason,
-      });
-    }
-    messages = [...messages, { role: "tool", content: responses }];
-  }
-
-  return { text: combinedText || "(stopped: too many tool-approval rounds without resolution)", messages };
+  return runAgenticLoop({
+    model: deps.model,
+    systemPrompt,
+    tools,
+    toolApproval,
+    messages,
+    onApprovalRequest: deps.onApprovalRequest,
+    onTextDelta: deps.onTextDelta,
+    onToolCallStart: deps.onToolCallStart,
+    buildApprovalDescription: (toolName, input) => describeDiff(deps.projectDir, toolName, input),
+    shouldAutoReject: (toolName) =>
+      shouldAutoRejectApproval(toolName, guard)
+        ? `Call ${SKILL_PREREQUISITES[toolName]} first to gather context, then retry ${toolName}.`
+        : null,
+  });
 }

@@ -67,7 +67,7 @@ function writeChapterModel(contents: string) {
 }
 
 describe("buildDraftChapterSystemPrompt", () => {
-  it("bundles the skill instructions, style guide, beats, and current chapter", async () => {
+  it("bundles the agent instructions, style guide, beats, and current chapter", async () => {
     await withDir(async (dir) => {
       initProject(dir, "The Salt Road");
       updateStyleGuide(dir, "Close third person, past tense.");
@@ -79,7 +79,7 @@ describe("buildDraftChapterSystemPrompt", () => {
       expect(prompt).toContain("Open with Mira.");
       expect(prompt).toContain("Close third person, past tense.");
       expect(prompt).toContain("Existing draft text.");
-      expect(prompt).toContain("Show, don't tell"); // from the draft-chapter skill's instructions
+      expect(prompt).toContain("Show, don't tell"); // from the draft-chapter agent's instructions
     });
   });
 

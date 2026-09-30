@@ -5,9 +5,9 @@ import { saveProjectConfig } from "./config.js";
 import { projectConfigSchema } from "./schema.js";
 
 /**
- * Skills ship as plain SKILL.md files under the package's own `skills/` directory (sibling to
- * `src/`/`dist/`) so they're easy to read and edit directly, rather than as string constants in
- * source. `init` copies each one into the new project. Walking up to the nearest package.json
+ * Skills and sub-agent definitions ship as plain markdown files under the package's own `skills/`
+ * and `agents/` directories (siblings to `src/`/`dist/`) so they're easy to read and edit
+ * directly, rather than as string constants in source. `init` copies each one into the new project. Walking up to the nearest package.json
  * finds this directory correctly whether running from source (`src/project/init.ts`) or from the
  * bundled build (`dist/cli.js`), since both sit at a different depth under the package root.
  */
@@ -21,7 +21,7 @@ function findPackageRoot(startDir: string): string {
   return dir;
 }
 
-const SKILLS_TEMPLATE_DIR = join(findPackageRoot(dirname(fileURLToPath(import.meta.url))), "skills");
+const PACKAGE_ROOT = findPackageRoot(dirname(fileURLToPath(import.meta.url)));
 
 const OUTLINE_TEMPLATE = `# Outline
 
@@ -69,15 +69,19 @@ export interface InitResult {
   skipped: string[];
 }
 
-/** Copies every `skills/<name>/SKILL.md` shipped with the package into the new project. */
-function copySkillTemplates(projectDir: string, created: string[], skipped: string[]) {
-  if (!existsSync(SKILLS_TEMPLATE_DIR)) return;
-  for (const entry of readdirSync(SKILLS_TEMPLATE_DIR, { withFileTypes: true })) {
+/**
+ * Copies every `<kind>/<name>/<fileName>` shipped with the package (e.g. `skills/<name>/SKILL.md`)
+ * into the new project's `storymode/<kind>/`, never overwriting a copy that already exists.
+ */
+function copyTemplates(kind: string, fileName: string, projectDir: string, created: string[], skipped: string[]) {
+  const templateDir = join(PACKAGE_ROOT, kind);
+  if (!existsSync(templateDir)) return;
+  for (const entry of readdirSync(templateDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    const srcPath = join(SKILLS_TEMPLATE_DIR, entry.name, "SKILL.md");
+    const srcPath = join(templateDir, entry.name, fileName);
     if (!existsSync(srcPath)) continue;
 
-    const destPath = join(projectDir, "storymode", "skills", entry.name, "SKILL.md");
+    const destPath = join(projectDir, "storymode", kind, entry.name, fileName);
     mkdirSync(dirname(destPath), { recursive: true });
     if (existsSync(destPath)) {
       skipped.push(destPath);
@@ -121,7 +125,8 @@ export function initProject(projectDir: string, title: string): InitResult {
     created.push(path);
   }
 
-  copySkillTemplates(projectDir, created, skipped);
+  copyTemplates("skills", "SKILL.md", projectDir, created, skipped);
+  copyTemplates("agents", "AGENT.md", projectDir, created, skipped);
 
   const configPath = join(projectDir, "storymode", "config.json");
   if (!existsSync(configPath)) {

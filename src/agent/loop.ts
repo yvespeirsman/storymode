@@ -2,6 +2,7 @@ import { createTwoFilesPatch } from "diff";
 import { type LanguageModel, type ModelMessage, tool } from "ai";
 import { z } from "zod";
 import type { ProjectConfig } from "../project/schema.js";
+import * as agentTools from "../tools/agentTools.js";
 import * as bibleTools from "../tools/bibleTools.js";
 import * as continuityTools from "../tools/continuityTools.js";
 import * as fileTools from "../tools/fileTools.js";
@@ -67,7 +68,7 @@ const DRAFT_CHARACTER_FALLBACK_DESCRIPTION =
   "Call this before creating or updating a character's bible entry. Returns drafting instructions " +
   "plus the story's lore and existing cast in one call.";
 
-const DRAFT_CHAPTER_SKILL_ID = "draft-chapter";
+const DRAFT_CHAPTER_AGENT_ID = "draft-chapter";
 const DRAFT_CHAPTER_FALLBACK_DESCRIPTION =
   "Draft or revise a chapter or scene. Runs as a focused sub-agent that handles the style guide, " +
   "beats, continuity, and the actual (approval-gated) write itself — give it a clear brief.";
@@ -100,7 +101,7 @@ export function buildTools(deps: AgentLoopDeps, guard: SkillGuardState) {
   const { projectDir, model } = deps;
   const draftOutlineSkill = skillTools.readSkill(projectDir, DRAFT_OUTLINE_SKILL_ID);
   const draftCharacterSkill = skillTools.readSkill(projectDir, DRAFT_CHARACTER_SKILL_ID);
-  const draftChapterSkill = skillTools.readSkill(projectDir, DRAFT_CHAPTER_SKILL_ID);
+  const draftChapterAgent = agentTools.readAgent(projectDir, DRAFT_CHAPTER_AGENT_ID);
 
   return {
     readFile: tool({
@@ -183,7 +184,7 @@ export function buildTools(deps: AgentLoopDeps, guard: SkillGuardState) {
         manuscriptTools.readChapter(projectDir, chapterId) || "(chapter is empty or does not exist yet)",
     }),
     draftChapter: tool({
-      description: draftChapterSkill?.description ?? DRAFT_CHAPTER_FALLBACK_DESCRIPTION,
+      description: draftChapterAgent?.description ?? DRAFT_CHAPTER_FALLBACK_DESCRIPTION,
       inputSchema: z.object({
         chapterId: z.string().describe('The chapter to draft or revise, e.g. "ch01"'),
         brief: z
@@ -196,8 +197,8 @@ export function buildTools(deps: AgentLoopDeps, guard: SkillGuardState) {
       }),
       execute: async ({ chapterId, brief }) => {
         deps.onSubAgentStarted?.({
-          id: DRAFT_CHAPTER_SKILL_ID,
-          name: draftChapterSkill?.name ?? DRAFT_CHAPTER_SKILL_ID,
+          id: DRAFT_CHAPTER_AGENT_ID,
+          name: draftChapterAgent?.name ?? DRAFT_CHAPTER_AGENT_ID,
           detail: chapterId,
         });
         // Deliberately don't forward onTextDelta: the sub-agent's own narration would stream

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { initProject } from "../src/project/init.js";
 import { writeProjectFile } from "../src/tools/fileTools.js";
+import { readAgent } from "../src/tools/agentTools.js";
 import { readSkill } from "../src/tools/skillTools.js";
 import { withTempProject } from "./helpers.js";
 
@@ -14,6 +15,18 @@ describe("initProject", () => {
       expect(skill?.name).toBe("draft-outline");
       expect(skill?.description.toLowerCase()).toContain("outline");
       expect(skill?.instructions.toLowerCase()).toContain("chapter level");
+    });
+  });
+
+  it("copies the package's sub-agent definitions into the new project", () => {
+    withTempProject((dir) => {
+      initProject(dir, "The Salt Road");
+
+      const agent = readAgent(dir, "draft-chapter");
+      expect(agent).not.toBeNull();
+      expect(agent?.name).toBe("draft-chapter");
+      expect(agent?.instructions).toContain("Show, don't tell");
+      expect(readSkill(dir, "draft-chapter")).toBeNull();
     });
   });
 

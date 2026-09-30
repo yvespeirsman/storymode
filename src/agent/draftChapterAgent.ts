@@ -4,11 +4,11 @@ import * as bibleTools from "../tools/bibleTools.js";
 import * as continuityTools from "../tools/continuityTools.js";
 import * as manuscriptTools from "../tools/manuscriptTools.js";
 import * as outlineTools from "../tools/outlineTools.js";
-import * as skillTools from "../tools/skillTools.js";
+import * as agentTools from "../tools/agentTools.js";
 import * as styleTools from "../tools/styleTools.js";
 import { runAgenticLoop, type ApprovalDecision, type PendingApproval } from "./agenticLoop.js";
 
-const DRAFT_CHAPTER_SKILL_ID = "draft-chapter";
+const DRAFT_CHAPTER_AGENT_ID = "draft-chapter";
 
 const DEFAULT_INSTRUCTIONS =
   "Apply the style guide below exactly. Follow the beat sheet if one exists; otherwise use the " +
@@ -61,7 +61,7 @@ export function buildDraftChapterSystemPrompt(params: {
   brief: string;
 }): string {
   const { projectDir, chapterId, brief } = params;
-  const skill = skillTools.readSkill(projectDir, DRAFT_CHAPTER_SKILL_ID);
+  const agent = agentTools.readAgent(projectDir, DRAFT_CHAPTER_AGENT_ID);
   const outline = outlineTools.readOutline(projectDir).trim();
   const styleGuide = styleTools.readStyleGuide(projectDir) || "(no style guide recorded yet)";
   const beats = outlineTools.readBeats(projectDir, chapterId) || "(no beats recorded yet)";
@@ -72,7 +72,7 @@ export function buildDraftChapterSystemPrompt(params: {
     "You are a focused sub-agent with one job: draft or revise a single chapter of a novel-in-progress. " +
       "You do not see the rest of the conversation the writer is having with the main agent — the task " +
       "below is everything you need. Write the actual prose yourself; don't describe what you would write.",
-    skill?.instructions ?? DEFAULT_INSTRUCTIONS,
+    agent?.instructions ?? DEFAULT_INSTRUCTIONS,
     `## Task\n${brief}`,
   ];
   if (outline) sections.push(`## Outline\n${outline}`);
@@ -196,7 +196,7 @@ export function buildDraftChapterAgentTools(model: LanguageModel, projectDir: st
 
 /**
  * Runs a bounded sub-agent whose only job is drafting/revising one chapter. Unlike the outer
- * loop's tools, this gets its own tailored system prompt (skill instructions, style guide, beats,
+ * loop's tools, this gets its own tailored system prompt (agent instructions, style guide, beats,
  * current content — no unrelated chat history, no full 20-tool schema list) and a much smaller
  * toolset. The actual write still goes through the same approval flow as everything else, via the
  * shared `onApprovalRequest` callback — so from the writer's side it looks identical to any other

@@ -132,8 +132,9 @@ my-novel/
         SKILL.md                # instructions the agent follows when drafting the outline
       draft-character/
         SKILL.md                # instructions the agent follows when drafting a character
+    agents/
       draft-chapter/
-        SKILL.md                # instructions the agent follows when drafting a chapter/scene
+        AGENT.md                # instructions for the sub-agent that drafts a chapter/scene
     continuity/
       facts.jsonl               # canonical facts extracted from drafted chapters
     session/                    # saved conversation history, for `storymode continue`
@@ -183,8 +184,8 @@ hand or with `storymode style edit`.
 
 ## Skills
 
-Each stage of the writing process (currently: drafting the outline, drafting
-a character, drafting a chapter or scene) has a matching skill file under
+Drafting the outline and drafting a character each have a matching skill
+file under
 `storymode/skills/<name>/SKILL.md` — plain markdown with a small YAML
 header:
 
@@ -204,12 +205,18 @@ does. Both are hand-editable — tune the instructions, tighten or loosen the
 description, or extend them with your own conventions. Nothing else in the
 codebase needs to change for your edits to take effect.
 
-`storymode init` populates a project's `storymode/skills/` by copying every
-`skills/<name>/SKILL.md` that ships with the package (`skills/` at the repo
-root, alongside `src/`) — so if you're developing StoryMode itself, edit the
-files there to change what new projects start with. It never overwrites a
-skill file that already exists in a project, so a project's own copy is
-independent from then on.
+Drafting a chapter or scene works differently: the main agent hands the job
+to a focused sub-agent, defined in `storymode/agents/draft-chapter/AGENT.md`.
+Same format — `description` tells the main agent when to delegate, and the
+body becomes the sub-agent's own instructions.
+
+`storymode init` populates a project's `storymode/skills/` and
+`storymode/agents/` by copying every `skills/<name>/SKILL.md` and
+`agents/<name>/AGENT.md` that ships with the package (both at the repo root,
+alongside `src/`) — so if you're developing StoryMode itself, edit the files
+there to change what new projects start with. It never overwrites a file
+that already exists in a project, so a project's own copy is independent
+from then on.
 
 ## Continuity checking
 

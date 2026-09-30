@@ -46,3 +46,9 @@ export const continuityFactSchema = z.object({
   extractedAt: z.string(),
 });
 export type ContinuityFact = z.infer<typeof continuityFactSchema>;
+
+export const agentFrontmatterSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+});
+export type AgentFrontmatter = z.infer<typeof agentFrontmatterSchema>;
